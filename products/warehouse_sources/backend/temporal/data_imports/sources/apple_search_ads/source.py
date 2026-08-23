@@ -73,7 +73,7 @@ Apple no longer lets you generate an API key in the Apple Ads UI. Instead, an Ac
 
 You generate the key pair yourself. Create an EC (P-256) key pair, upload the public key to Apple, and keep the private key. To find the **organization ID**, call Apple's Get User ACL endpoint (`GET https://api.searchads.apple.com/api/v5/acls`) with these credentials.
 
-PostHog signs a short-lived token with your private key on every sync, so no long-lived secret is stored.""",
+PostHog stores your private key encrypted at rest and uses it to sign a short-lived token on every sync. That token isn't stored.""",
             permissionsCaption="""The API client needs read access to your campaign data. Give it the **API Account Read Only** role. This role grants read access to all campaign groups, which is enough to sync reporting into PostHog. The **API Account Manager** role also works if you already use it for write access.""",
             iconPath="/static/services/apple_search_ads.png",
             docsUrl="https://posthog.com/docs/cdp/sources/apple-search-ads",
