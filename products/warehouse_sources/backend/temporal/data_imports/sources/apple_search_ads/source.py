@@ -69,9 +69,11 @@ class AppleSearchAdsSource(ResumableSource[AppleSearchAdsSourceConfig, AppleSear
             label="Apple Search Ads",
             caption="""Connect your Apple Ads (Apple Search Ads) account to pull campaigns, ad groups, keywords and daily performance into the PostHog Data warehouse.
 
-Apple no longer lets you generate an API key in the Apple Ads UI. Instead, an Account Admin creates an API client. Open **Account Settings > API** at [ads.apple.com](https://ads.apple.com) and create a client. Apple then shows the **client ID**, **team ID** and **key ID** above the public key field.
+Apple no longer lets you generate an API key in the Apple Ads UI. Instead, an Account Admin creates an API client. Open **Account Settings > API** at [ads.apple.com](https://ads.apple.com) and add a client.
 
-You generate the key pair yourself. Create an EC (P-256) key pair, upload the public key to Apple, and keep the private key. To find the **organization ID**, call Apple's Get User ACL endpoint (`GET https://api.searchads.apple.com/api/v5/acls`) with these credentials.
+Generate an EC (P-256) key pair yourself. Paste the public key into the **Public Key** field and save it. Apple then shows the **client ID**, **team ID** and **key ID** above the field. Keep the private key.
+
+Find the **organization ID** in your Apple Ads account settings. An agency-managed account can use a different ID, so confirm it from Apple's Get User ACL endpoint (`GET https://api.searchads.apple.com/api/v5/acls`) if you are unsure.
 
 PostHog stores your private key encrypted at rest and uses it to sign a short-lived token on every sync. That token isn't stored.""",
             permissionsCaption="""The API client needs read access to your campaign data. Give it the **API Account Read Only** role. This role grants read access to all campaign groups, which is enough to sync reporting into PostHog. The **API Account Manager** role also works if you already use it for write access.""",
@@ -88,7 +90,7 @@ PostHog stores your private key encrypted at rest and uses it to sign a short-li
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="123456",
-                        caption="Call Apple's Get User ACL endpoint (`GET /api/v5/acls`) with your credentials to find this.",
+                        caption="Find this in your Apple Ads account settings. If an agency manages the account, confirm it from the Get User ACL endpoint (`GET /api/v5/acls`).",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -97,7 +99,7 @@ PostHog stores your private key encrypted at rest and uses it to sign a short-li
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="SEARCHADS.27478e17-...",
-                        caption="Apple shows this above the public key field when you create the API client.",
+                        caption="Apple shows this above the Public Key field after you upload the public key.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -106,7 +108,7 @@ PostHog stores your private key encrypted at rest and uses it to sign a short-li
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="SEARCHADS.6f0a1b2c-...",
-                        caption="Apple shows this above the public key field. For Apple Ads it usually matches the client ID.",
+                        caption="Apple shows this next to the client ID. For Apple Ads it usually matches the client ID.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -115,7 +117,7 @@ PostHog stores your private key encrypted at rest and uses it to sign a short-li
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="a1b2c3d4-...",
-                        caption="Apple shows this above the public key field.",
+                        caption="Apple shows this next to the client ID after the key upload.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
