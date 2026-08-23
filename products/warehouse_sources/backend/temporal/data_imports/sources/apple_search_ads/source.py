@@ -67,9 +67,14 @@ class AppleSearchAdsSource(ResumableSource[AppleSearchAdsSourceConfig, AppleSear
             name=SchemaExternalDataSourceType.APPLE_SEARCH_ADS,
             category=DataWarehouseSourceCategory.ADVERTISING,
             label="Apple Search Ads",
-            caption="""Connect your Apple Search Ads account to pull campaigns, ad groups, keywords and daily performance into the PostHog Data warehouse.
+            caption="""Connect your Apple Ads (Apple Search Ads) account to pull campaigns, ad groups, keywords and daily performance into the PostHog Data warehouse.
 
-In the Search Ads UI, create an API user with at least **Read only** access, generate an API key, and keep the private key it gives you. Then enter the organization ID, client ID, team ID and key ID from the API key page, plus the private key itself. PostHog signs a short-lived token with the key on every sync, so no long-lived secret is stored.""",
+Apple no longer lets you generate an API key in the Apple Ads UI. Instead, an Account Admin creates an API client. Open **Account Settings > API** at [ads.apple.com](https://ads.apple.com) and create a client. Apple then shows the **client ID**, **team ID** and **key ID** above the public key field.
+
+You generate the key pair yourself. Create an EC (P-256) key pair, upload the public key to Apple, and keep the private key. To find the **organization ID**, call Apple's Get User ACL endpoint (`GET https://api.searchads.apple.com/api/v5/acls`) with these credentials.
+
+PostHog signs a short-lived token with your private key on every sync, so no long-lived secret is stored.""",
+            permissionsCaption="""The API client needs read access to your campaign data. Give it the **API Account Read Only** role. This role grants read access to all campaign groups, which is enough to sync reporting into PostHog. The **API Account Manager** role also works if you already use it for write access.""",
             iconPath="/static/services/apple_search_ads.png",
             docsUrl="https://posthog.com/docs/cdp/sources/apple-search-ads",
             releaseStatus=ReleaseStatus.ALPHA,
@@ -83,6 +88,7 @@ In the Search Ads UI, create an API user with at least **Read only** access, gen
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="123456",
+                        caption="Call Apple's Get User ACL endpoint (`GET /api/v5/acls`) with your credentials to find this.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -91,6 +97,7 @@ In the Search Ads UI, create an API user with at least **Read only** access, gen
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="SEARCHADS.27478e17-...",
+                        caption="Apple shows this above the public key field when you create the API client.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -98,7 +105,8 @@ In the Search Ads UI, create an API user with at least **Read only** access, gen
                         label="Team ID",
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
-                        placeholder="SEARCHADS.27478e17-...",
+                        placeholder="SEARCHADS.6f0a1b2c-...",
+                        caption="Apple shows this above the public key field. For Apple Ads it usually matches the client ID.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -107,6 +115,7 @@ In the Search Ads UI, create an API user with at least **Read only** access, gen
                         type=SourceFieldInputConfigType.TEXT,
                         required=True,
                         placeholder="a1b2c3d4-...",
+                        caption="Apple shows this above the public key field.",
                         secret=False,
                     ),
                     SourceFieldInputConfig(
@@ -115,6 +124,7 @@ In the Search Ads UI, create an API user with at least **Read only** access, gen
                         type=SourceFieldInputConfigType.TEXTAREA,
                         required=True,
                         placeholder="-----BEGIN EC PRIVATE KEY-----",
+                        caption="Paste the unencrypted EC (P-256) private key that matches the public key you uploaded to Apple.",
                         secret=True,
                     ),
                     SourceFieldInputConfig(

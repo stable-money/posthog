@@ -64,6 +64,10 @@ class TestAppleSearchAdsSource:
         assert not config.unreleasedSource
         assert config.iconPath == "/static/services/apple_search_ads.png"
         assert config.docsUrl == "https://posthog.com/docs/cdp/sources/apple-search-ads"
+        assert config.permissionsCaption
+
+        inputs = {field.name: field for field in config.fields if isinstance(field, SourceFieldInputConfig)}
+        assert inputs["client_id"].placeholder != inputs["apple_team_id"].placeholder
 
     @parameterized.expand(
         [
