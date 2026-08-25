@@ -879,6 +879,10 @@ jobs:
                   compat=()
                   while IFS= read -r f; do
                       [[ -z "$f" ]] && continue
+                      # A deleted path must not reach pytest, which hard-errors on a missing
+                      # positional arg. The selector maps a change under a directory to that
+                      # directory's tests, so removing one test file still selects it.
+                      [[ -e "$f" ]] || continue
                       # Compat overlaps the POE scope rather than partitioning with it, so
                       # it is collected separately from the segment case below. Driven by the
                       # same env var the compat pytest invocation uses, so widening one can't
