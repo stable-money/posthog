@@ -1580,6 +1580,7 @@ export interface sourceWizardLogicActions {
             | 'RocketChat'
             | 'Rocketlane'
             | 'RocketMatter'
+            | 'RoktAds'
             | 'Rollbar'
             | 'Rootly'
             | 'Rss'
