@@ -9168,6 +9168,7 @@ export const externalDataSources = [
     'Liveblocks',
     'NationBuilder',
     'Tana',
+    'GoogleTagManager',
 ] as const
 
 export type ExternalDataSourceType = (typeof externalDataSources)[number]

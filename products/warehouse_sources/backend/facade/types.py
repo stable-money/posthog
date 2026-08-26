@@ -1370,6 +1370,7 @@ class ExternalDataSourceType(models.TextChoices):
     DEPOT = "Depot", "Depot"
     SCHEMATIC = "Schematic", "Schematic"
     DOKPLOY = "Dokploy", "Dokploy"
+    GOOGLETAGMANAGER = "GoogleTagManager", "GoogleTagManager"
     HOOTSUITE = "Hootsuite", "Hootsuite"
     WISPRFLOW = "WisprFlow", "WisprFlow"
     SAMCART = "SamCart", "SamCart"
