@@ -18,12 +18,11 @@
 //! and per-lane topics still resolve during prep via the `OutputRegistry`.
 
 use async_trait::async_trait;
-use metrics::{counter, gauge, histogram};
+use metrics::{counter, gauge};
 use tracing::instrument;
 use tracing::log::error;
 
 use crate::api::CaptureError;
-use crate::sinks::Event;
 use crate::v0_request::ProcessedEvent;
 
 /// The leaf produce contract: run prep, publish, and fold internally and
@@ -221,30 +220,6 @@ impl OutputTable {
     }
 }
 
-/// Transitional facade serving the existing `Event` call sites from the
-/// table until they migrate to publishing through it directly. Records
-/// `capture_event_batch_size` because the sink impls that used to record
-/// it no longer sit on this path. Two deliberate recording deltas against
-/// the old composites: the histogram now records when a batch goes to the
-/// S3 fallback (it silently didn't), and print/noop single sends record it
-/// (they didn't).
-#[async_trait]
-impl Event for OutputTable {
-    async fn send(&self, event: ProcessedEvent) -> Result<(), CaptureError> {
-        histogram!("capture_event_batch_size").record(1.0);
-        self.output.publish_one(event).await
-    }
-
-    async fn send_batch(&self, events: Vec<ProcessedEvent>) -> Result<(), CaptureError> {
-        histogram!("capture_event_batch_size").record(events.len() as f64);
-        self.output.publish_batch(events).await
-    }
-
-    fn flush(&self) -> Result<(), anyhow::Error> {
-        self.output.flush()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -429,13 +404,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn table_facade_serves_event_call_sites() {
+    async fn table_publishes_single_events_and_batches_to_its_output() {
         let leaf = MockSink::new();
-        let table = OutputTable::new(Output::single(leaf.clone()));
+        let table = OutputTable::single(leaf.clone());
 
-        table.send(test_event()).await.unwrap();
+        table.publish_one(test_event()).await.unwrap();
         table
-            .send_batch(vec![test_event(), test_event()])
+            .publish_batch(vec![test_event(), test_event()])
             .await
             .unwrap();
 
