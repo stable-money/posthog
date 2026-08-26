@@ -26417,7 +26417,8 @@
                 "CommissionJunction",
                 "Liveblocks",
                 "NationBuilder",
-                "Tana"
+                "Tana",
+                "RoktAds"
             ],
             "type": "string"
         },

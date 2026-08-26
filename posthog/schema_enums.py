@@ -2601,6 +2601,7 @@ class ExternalDataSourceType(StrEnum):
     LIVEBLOCKS = "Liveblocks"
     NATION_BUILDER = "NationBuilder"
     TANA = "Tana"
+    ROKT_ADS = "RoktAds"
 
 
 class ExternalQueryErrorCode(StrEnum):
