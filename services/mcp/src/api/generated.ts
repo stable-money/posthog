@@ -22587,6 +22587,7 @@ export namespace Schemas {
      * * `Gladly` - Gladly
      * * `Qualtrics` - Qualtrics
      * * `AzureDevOps` - AzureDevOps
+     * * `RoktAds` - RoktAds
      * * `Rollbar` - Rollbar
      * * `Opsgenie` - Opsgenie
      * * `IncidentIo` - IncidentIo
@@ -23909,6 +23910,7 @@ export namespace Schemas {
       Gladly: 'Gladly',
       Qualtrics: 'Qualtrics',
       AzureDevOps: 'AzureDevOps',
+      RoktAds: 'RoktAds',
       Rollbar: 'Rollbar',
       Opsgenie: 'Opsgenie',
       IncidentIo: 'IncidentIo',
@@ -25245,6 +25247,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
@@ -27269,6 +27272,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
@@ -35314,6 +35318,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
@@ -36670,6 +36675,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
@@ -75808,6 +75814,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
@@ -77172,6 +77179,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
@@ -78526,6 +78534,7 @@ export namespace Schemas {
        * * `Gladly` - Gladly
        * * `Qualtrics` - Qualtrics
        * * `AzureDevOps` - AzureDevOps
+       * * `RoktAds` - RoktAds
        * * `Rollbar` - Rollbar
        * * `Opsgenie` - Opsgenie
        * * `IncidentIo` - IncidentIo
