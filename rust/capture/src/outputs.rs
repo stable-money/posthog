@@ -12,12 +12,10 @@
 //! hoist (see the plan doc) later moves payload assembly into this layer
 //! and retires the trait.
 //!
-//! [`OutputTable`] is the address table the deployment state holds. It is
-//! degenerate today: one deployment-wide output serves every (pipeline,
-//! lane) address, and per-lane topics still resolve during prep via the
-//! `OutputRegistry`. Call sites keep publishing through the v0 `Event`
-//! trait, served by the transitional facade implemented on the table; the
-//! call-site migration retires that facade together with the trait.
+//! [`OutputTable`] is the address table the deployment state holds, and the
+//! produce surface every call site publishes through. It is degenerate
+//! today: one deployment-wide output serves every (pipeline, lane) address,
+//! and per-lane topics still resolve during prep via the `OutputRegistry`.
 
 use async_trait::async_trait;
 use metrics::{counter, gauge, histogram};
@@ -32,8 +30,12 @@ use crate::v0_request::ProcessedEvent;
 /// report the v0 whole-request result. Payload assembly stays inside the
 /// backend until the prep hoist moves it into this layer, which is also
 /// when this trait is deleted.
+///
+/// `pub` rather than `pub(crate)` because the integration suites in
+/// `tests/` stand their own capturing sinks in as output leaves; there is
+/// no other reason to implement it outside this crate.
 #[async_trait]
-pub(crate) trait PublishEvents: Send + Sync {
+pub trait PublishEvents: Send + Sync {
     async fn publish_one(&self, event: ProcessedEvent) -> Result<(), CaptureError>;
 
     async fn publish_batch(&self, events: Vec<ProcessedEvent>) -> Result<(), CaptureError>;
@@ -59,7 +61,7 @@ enum Inner {
 
 impl Output {
     /// A single-backend output.
-    pub(crate) fn single<L: PublishEvents + 'static>(leaf: L) -> Self {
+    pub fn single<L: PublishEvents + 'static>(leaf: L) -> Self {
         Self {
             inner: Inner::Single(Box::new(leaf)),
         }
@@ -190,6 +192,32 @@ pub struct OutputTable {
 impl OutputTable {
     pub fn new(output: Output) -> Self {
         Self { output }
+    }
+
+    /// The degenerate table over one single-backend output: the shape every
+    /// non-failover deployment and every pipeline test uses.
+    pub fn single<L: PublishEvents + 'static>(leaf: L) -> Self {
+        Self::new(Output::single(leaf))
+    }
+
+    /// Publish one event. Callers record `capture_event_batch_size`
+    /// themselves: the batch size is a property of the request being
+    /// served, not of the output it lands on, and recording it here would
+    /// hide the difference between a call site that batches and one that
+    /// does not.
+    pub async fn publish_one(&self, event: ProcessedEvent) -> Result<(), CaptureError> {
+        self.output.publish_one(event).await
+    }
+
+    /// Publish a batch. Per-event failures collapse to the whole-request
+    /// `CaptureError` until the response model lands.
+    pub async fn publish_batch(&self, events: Vec<ProcessedEvent>) -> Result<(), CaptureError> {
+        self.output.publish_batch(events).await
+    }
+
+    /// Flush buffered data before shutdown.
+    pub fn flush(&self) -> Result<(), anyhow::Error> {
+        self.output.flush()
     }
 }
 
