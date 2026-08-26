@@ -3216,6 +3216,7 @@ export interface CredentialApi {
  * * `Depot` - Depot
  * * `Schematic` - Schematic
  * * `Dokploy` - Dokploy
+ * * `GoogleTagManager` - GoogleTagManager
  * * `Hootsuite` - Hootsuite
  * * `WisprFlow` - WisprFlow
  * * `SamCart` - SamCart
@@ -4538,6 +4539,7 @@ export const ExternalDataSourceTypeEnumApi = {
     Depot: 'Depot',
     Schematic: 'Schematic',
     Dokploy: 'Dokploy',
+    GoogleTagManager: 'GoogleTagManager',
     Hootsuite: 'Hootsuite',
     WisprFlow: 'WisprFlow',
     SamCart: 'SamCart',
