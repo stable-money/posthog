@@ -1116,6 +1116,7 @@ export interface sourceWizardLogicActions {
             | 'GooglePostmasterTools'
             | 'GoogleSearchConsole'
             | 'GoogleSheets'
+            | 'GoogleTagManager'
             | 'GoogleTasks'
             | 'GoogleWebfonts'
             | 'GoogleWorkspaceAdminReports'

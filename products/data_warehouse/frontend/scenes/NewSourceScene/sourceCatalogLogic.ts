@@ -677,6 +677,7 @@ export interface sourceCatalogLogicMeta {
                       | 'GooglePostmasterTools'
                       | 'GoogleSearchConsole'
                       | 'GoogleSheets'
+                      | 'GoogleTagManager'
                       | 'GoogleTasks'
                       | 'GoogleWebfonts'
                       | 'GoogleWorkspaceAdminReports'
