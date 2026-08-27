@@ -43,6 +43,7 @@ import json
 import argparse
 import warnings
 import subprocess
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath
 
@@ -676,6 +677,12 @@ def narrowable_baseline_seconds(durations: dict[str, float]) -> float:
     return total
 
 
+def _existing_repo_files(paths: Iterable[str]) -> list[str]:
+    """Filter to paths that still exist on disk. Git diff lists a deleted file as
+    changed; passing it to pytest as a positional arg is a hard error."""
+    return sorted(path for path in set(paths) if (REPO_ROOT / path).is_file())
+
+
 def build_result(base_ref: str) -> dict[str, object]:
     os.chdir(REPO_ROOT)
     changed_files = changed_files_from_git(base_ref)
@@ -684,7 +691,9 @@ def build_result(base_ref: str) -> dict[str, object]:
     snob_selection = snob_select_tests(changed_files)
 
     snob_tests = [str(test) for test in snob_selection.get("tests", [])]
-    combined_tests = sorted(set(snob_tests) | set(ast_selection.tests))
+    # ast_select_tests already filters its own changed_tests group this way; snob_lib
+    # can return the same deleted path, so the combined set is filtered here too.
+    combined_tests = _existing_repo_files([*snob_tests, *ast_selection.tests])
 
     durations = load_durations()
     selected_seconds = estimate_duration(combined_tests, durations)

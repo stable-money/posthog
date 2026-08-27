@@ -148,6 +148,24 @@ class TestSnobBackendTestSelectionShadow(unittest.TestCase):
                 result,
             )
 
+    def test_existing_repo_files_drops_deleted_paths(self) -> None:
+        # snob_lib resolves through its own import graph, built before this diff
+        # deleted the file, so it can still return a path that no longer exists.
+        # build_result merges that straight into combined_tests, which turbo-discover.js
+        # hands to pytest as a positional arg — a hard error on a missing file.
+        with tempfile.TemporaryDirectory() as root:
+            selection = _load_selection_module()
+            selection.REPO_ROOT = Path(root)
+            live_test = selection.REPO_ROOT / "posthog" / "api" / "test" / "test_feature_flags.py"
+            live_test.parent.mkdir(parents=True)
+            live_test.write_text("def test_feature_flags():\n    pass\n")
+
+            result = selection._existing_repo_files(
+                ["posthog/api/test/test_feature_flags.py", "posthog/session/test/test_backfill.py"]
+            )
+
+            self.assertEqual(["posthog/api/test/test_feature_flags.py"], result)
+
     def test_signal_handler_change_expands_to_app_and_api_tests(self) -> None:
         with tempfile.TemporaryDirectory() as root:
             tmp_path = Path(root)
@@ -258,19 +276,24 @@ class TestSnobBackendTestSelectionShadow(unittest.TestCase):
             selection.HIGH_FANOUT_PATH = original_path
 
     def test_changed_tests_do_not_trigger_full_run_patterns(self) -> None:
-        selection = _load_selection_module()
+        with tempfile.TemporaryDirectory() as root:
+            selection = _load_selection_module()
+            selection.REPO_ROOT = Path(root)
+            test_path = selection.REPO_ROOT / "posthog" / "test" / "test_version_requirement.py"
+            test_path.parent.mkdir(parents=True)
+            test_path.write_text("def test_version(): pass\n")
 
-        result = selection.ast_select_tests(
-            ["posthog/test/test_version_requirement.py"],
-            {
-                "posthog/test/test_version_requirement.py": selection.TestFeatures(
-                    path="posthog/test/test_version_requirement.py"
-                )
-            },
-        )
+            result = selection.ast_select_tests(
+                ["posthog/test/test_version_requirement.py"],
+                {
+                    "posthog/test/test_version_requirement.py": selection.TestFeatures(
+                        path="posthog/test/test_version_requirement.py"
+                    )
+                },
+            )
 
-        self.assertEqual([], result.full_run_reasons)
-        self.assertEqual({"changed_tests": ["posthog/test/test_version_requirement.py"]}, result.groups)
+            self.assertEqual([], result.full_run_reasons)
+            self.assertEqual({"changed_tests": ["posthog/test/test_version_requirement.py"]}, result.groups)
 
     def test_deleted_test_file_is_excluded_from_changed_tests(self) -> None:
         with tempfile.TemporaryDirectory() as root:
