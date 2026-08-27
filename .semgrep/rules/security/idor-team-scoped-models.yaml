@@ -115,6 +115,7 @@ rules:
                               |CustomPropertyValue
                               |DAG
                               |Dashboard
+                              |DashboardSavedView
                               |DashboardTemplate
                               |DashboardWidget
                               |DataColorTheme
@@ -487,6 +488,7 @@ rules:
                         |CustomPropertyValue
                         |DAG
                         |Dashboard
+                        |DashboardSavedView
                         |DashboardTemplate
                         |DashboardWidget
                         |DataColorTheme
