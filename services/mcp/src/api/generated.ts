@@ -30457,8 +30457,6 @@ export namespace Schemas {
     } as const;
 
     export interface ErrorTrackingAlertDestination {
-      /** Unique identifier of the destination. */
-      readonly id: string;
       /** Delivery channel for notifications.
        *
        * * `slack` - Slack */
@@ -30470,6 +30468,8 @@ export namespace Schemas {
       integration_id?: number | null;
       /** Channel-specific delivery settings, e.g. {"channel": "C0123"} for Slack. */
       config: unknown;
+      /** Unique identifier of the destination. */
+      readonly id: string;
     }
 
     export interface ErrorTrackingAlert {
@@ -30493,6 +30493,20 @@ export namespace Schemas {
       readonly updated_at: string;
     }
 
+    export interface ErrorTrackingAlertDestinationRequest {
+      /** Delivery channel for notifications.
+       *
+       * * `slack` - Slack */
+      channel_type: ChannelTypeEnum;
+      /**
+         * ID of the workspace integration used to deliver notifications (required for Slack).
+         * @nullable
+         */
+      integration_id?: number | null;
+      /** Channel-specific delivery settings, e.g. {"channel": "C0123"} for Slack. */
+      config: unknown;
+    }
+
     export interface ErrorTrackingAlertCreateRequest {
       /**
          * Human-readable name of the alert.
@@ -30509,7 +30523,7 @@ export namespace Schemas {
          */
       throttle_seconds?: number;
       /** Delivery targets notifications fan out to. */
-      destinations: ErrorTrackingAlertDestination[];
+      destinations: ErrorTrackingAlertDestinationRequest[];
     }
 
     export interface ErrorTrackingAlertUpdateRequest {
@@ -30530,7 +30544,7 @@ export namespace Schemas {
          */
       throttle_seconds?: number;
       /** Delivery targets notifications fan out to. When provided, replaces all current destinations. */
-      destinations?: ErrorTrackingAlertDestination[];
+      destinations?: ErrorTrackingAlertDestinationRequest[];
     }
 
     export interface ErrorTrackingAssignee {
@@ -60470,7 +60484,7 @@ export namespace Schemas {
          */
       throttle_seconds?: number;
       /** Delivery targets notifications fan out to. When provided, replaces all current destinations. */
-      destinations?: ErrorTrackingAlertDestination[];
+      destinations?: ErrorTrackingAlertDestinationRequest[];
     }
 
     /**
