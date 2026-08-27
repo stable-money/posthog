@@ -8,7 +8,19 @@ import { ChunkPipeline } from './chunk-pipeline.interface'
 import { FanOutFanInChunkPipeline, FanOutSubContext } from './fan-out-fan-in-chunk-pipeline'
 import { createKafkaDebugContext, createNewChunkPipeline, createOkContext } from './helpers'
 import { PipelineResultWithContext, PipelineWarning } from './pipeline.interface'
-import { PipelineResult, dlq, drop, isDlqResult, isOkResult, ok, redirect } from './results'
+import {
+    PipelineResult,
+    dlq,
+    drop,
+    isDlqResult,
+    isOkResult,
+    isRejectedResult,
+    isTimeoutResult,
+    ok,
+    redirect,
+    rejected,
+    timeout,
+} from './results'
 
 jest.mock('~/common/utils/logger', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -359,6 +371,40 @@ describe('FanOutFanInChunkPipeline', () => {
 
         expect(results).toHaveLength(1)
         expect(isDlqResult(results[0].result) && results[0].result.reason).toBe(expectedReason)
+    })
+
+    it.each([
+        ['timeout', timeout<SubItem>('budget exceeded'), isTimeoutResult, 'timed out: budget exceeded'],
+        ['rejected', rejected<SubItem>('key gated'), isRejectedResult, 'was rejected: key gated'],
+    ])('makes the parent unacked when a sub-result is %s', async (_name, subResult, isExpected, expectedTail) => {
+        const fanInCalls: string[] = []
+        function trackingFanIn(parent: Parent, subs: SubItem[]): Merged {
+            fanInCalls.push(parent.id)
+            return sumSubs(parent, subs)
+        }
+        function cutOffFirstSubStep(items: SubItem[]): Promise<PipelineResult<SubItem>[]> {
+            return Promise.resolve(items.map((item) => (item.value === 1 ? subResult : ok(item))))
+        }
+
+        const pipeline = createNewChunkPipeline<Parent>()
+            .fanOut(splitSubs)
+            .via((sub) => sub.pipeChunk(cutOffFirstSubStep))
+            .fanIn(trackingFanIn)
+            .build()
+
+        feedParents(pipeline, [
+            { id: 'cutoff', subs: [1, 2] },
+            { id: 'healthy', subs: [3] },
+        ])
+
+        const results = await drainAll(pipeline)
+
+        expect(results).toHaveLength(2)
+        const unacked = results.find((r) => isExpected(r.result))!
+        expect((unacked.result as { reason: string }).reason).toBe(`fan-out sub-element ${expectedTail}`)
+        expect(fanInCalls).toEqual(['healthy'])
+        expect(okValues(results)).toEqual([{ id: 'healthy', total: 3 }])
+        expect(mockLogger.warn).not.toHaveBeenCalled()
     })
 
     it('merges sub side effects and warnings into the parent context without double-counting', async () => {

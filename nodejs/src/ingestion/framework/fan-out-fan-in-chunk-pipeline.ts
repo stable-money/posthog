@@ -3,7 +3,18 @@ import { logger } from '~/common/utils/logger'
 import { ChunkPipeline, ChunkPipelineResultWithContext, OkResultWithContext } from './chunk-pipeline.interface'
 import { InterleavingChunkPipeline, PullOutcome } from './interleaving-chunk-pipeline'
 import { PipelineContext, PipelineResultWithContext } from './pipeline.interface'
-import { PipelineResultType, dlq, isDlqResult, isDropResult, isOkResult, ok } from './results'
+import {
+    PipelineResultType,
+    dlq,
+    isDlqResult,
+    isDropResult,
+    isOkResult,
+    isTimeoutResult,
+    isUnackedResult,
+    ok,
+    rejected,
+    timeout,
+} from './results'
 
 /**
  * Splits one element into its sub-elements. Must be synchronous and cheap —
@@ -63,6 +74,8 @@ interface PendingParent<TElement, TSubOut, C> {
     dlqFailures: { reason: string; error: unknown }[]
     /** lastStep of the most recent DLQ sub-result, for error attribution on the parent. */
     dlqLastStep: string | undefined
+    /** First unacked sub-result seen; when set the parent takes it instead of fanning in. */
+    unacked: { timedOut: boolean; reason: string; lastStep: string | undefined } | null
 }
 
 /**
@@ -85,6 +98,9 @@ interface PendingParent<TElement, TSubOut, C> {
  *      error via AggregateError) once all of its siblings have drained.
  *      Fanning in anyway could emit an element built for work that never
  *      happened — e.g. a pointer to a blob that was never stored.
+ *    - TIMEOUT and REJECTED make the parent unacked as well: the parent's
+ *      message is redelivered whole, so fanning in would emit an element
+ *      built from partial work the redelivery repeats.
  *    - REDIRECT contributes nothing but logs a warning: it is almost
  *      certainly misuse, since sub-elements are not Kafka messages — route
  *      the parent before fanning out instead.
@@ -208,6 +224,7 @@ export class FanOutFanInChunkPipeline<
                 collected: [],
                 dlqFailures: [],
                 dlqLastStep: undefined,
+                unacked: null,
             }
             const ref = new FanOutParentRef()
             this.pendingParents.set(ref, parent)
@@ -289,6 +306,16 @@ export class FanOutFanInChunkPipeline<
 
         if (isOkResult(subResult.result)) {
             parent.collected.push(subResult.result.value)
+        } else if (isUnackedResult(subResult.result)) {
+            // The parent's message is redelivered whole, so a sub-element that
+            // was cut off or refused makes the parent unacked as well. Fanning
+            // in would emit an element built from partial work that the
+            // redelivery repeats.
+            parent.unacked ??= {
+                timedOut: isTimeoutResult(subResult.result),
+                reason: subResult.result.reason,
+                lastStep: subResult.context.lastStep,
+            }
         } else if (isDlqResult(subResult.result)) {
             // A sub-element that must be dead-lettered fails its whole parent:
             // fanning in regardless could emit an element built for work that
@@ -314,10 +341,30 @@ export class FanOutFanInChunkPipeline<
         }
 
         this.pendingParents.delete(ref)
-        if (parent.dlqFailures.length > 0) {
+        if (parent.unacked) {
+            this.readyResults.push(this.unackParent(parent, parent.unacked))
+        } else if (parent.dlqFailures.length > 0) {
             this.readyResults.push(this.failParent(parent))
         } else {
             this.readyResults.push(this.completeParent(parent.original, parent.context, parent.collected))
+        }
+    }
+
+    /**
+     * Emit the parent as the unacked result its sub-element produced, so the
+     * message is redelivered and the whole element is processed again. Every
+     * sub-result has drained by now, so the context already carries all sibling
+     * side effects and warnings; collected values are discarded.
+     */
+    private unackParent(
+        parent: PendingParent<TElement, TSubOut, COutput>,
+        unacked: NonNullable<PendingParent<TElement, TSubOut, COutput>['unacked']>
+    ): PipelineResultWithContext<TMerged, COutput, RPrev> {
+        const reason = `fan-out sub-element ${unacked.timedOut ? 'timed out' : 'was rejected'}: ${unacked.reason}`
+        parent.context.lastStep = unacked.lastStep
+        return {
+            result: unacked.timedOut ? timeout<TMerged>(reason) : rejected<TMerged>(reason),
+            context: parent.context,
         }
     }
 

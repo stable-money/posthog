@@ -5,6 +5,8 @@ export enum PipelineResultType {
     DLQ,
     DROP,
     REDIRECT,
+    TIMEOUT,
+    REJECTED,
 }
 
 export type PipelineResultOk<T> = {
@@ -36,6 +38,29 @@ export type PipelineResultRedirect<R extends string = never> = {
     warnings: PipelineWarning[]
 }
 /**
+ * The element's own time budget cut it off, either mid-chain or before its
+ * first step ran. The message is not acked, so its source redelivers it and
+ * the whole chain runs again from the top.
+ */
+export type PipelineResultTimeout = {
+    type: PipelineResultType.TIMEOUT
+    reason: string
+    sideEffects: Promise<unknown>[]
+    warnings: PipelineWarning[]
+}
+/**
+ * The element was never attempted: processing it now would reorder its
+ * routing key. Like a timeout it is not acked and its source redelivers it.
+ * The two stay distinct because the distinction is what tells a slow step
+ * (timeouts) from a hot key (rejections).
+ */
+export type PipelineResultRejected = {
+    type: PipelineResultType.REJECTED
+    reason: string
+    sideEffects: Promise<unknown>[]
+    warnings: PipelineWarning[]
+}
+/**
  * Discriminated union of all possible step outcomes.
  *
  * @typeParam T - The value type for OK results.
@@ -48,6 +73,8 @@ export type PipelineResult<T, R extends string = never> =
     | PipelineResultDlq
     | PipelineResultDrop
     | PipelineResultRedirect<R>
+    | PipelineResultTimeout
+    | PipelineResultRejected
 
 /**
  * Helper functions for creating pipeline step results
@@ -75,6 +102,22 @@ export function drop<T>(
     warnings: PipelineWarning[] = []
 ): PipelineResult<T> {
     return { type: PipelineResultType.DROP, reason, sideEffects, warnings }
+}
+
+export function timeout<T>(
+    reason: string,
+    sideEffects: Promise<unknown>[] = [],
+    warnings: PipelineWarning[] = []
+): PipelineResult<T> {
+    return { type: PipelineResultType.TIMEOUT, reason, sideEffects, warnings }
+}
+
+export function rejected<T>(
+    reason: string,
+    sideEffects: Promise<unknown>[] = [],
+    warnings: PipelineWarning[] = []
+): PipelineResult<T> {
+    return { type: PipelineResultType.REJECTED, reason, sideEffects, warnings }
 }
 
 /**
@@ -121,4 +164,27 @@ export function isRedirectResult<T, R extends string = never>(
     result: PipelineResult<T, R>
 ): result is PipelineResultRedirect<R> {
     return result.type === PipelineResultType.REDIRECT
+}
+
+export function isTimeoutResult<T, R extends string = never>(
+    result: PipelineResult<T, R>
+): result is PipelineResultTimeout {
+    return result.type === PipelineResultType.TIMEOUT
+}
+
+export function isRejectedResult<T, R extends string = never>(
+    result: PipelineResult<T, R>
+): result is PipelineResultRejected {
+    return result.type === PipelineResultType.REJECTED
+}
+
+/**
+ * True for the results that are not acked: the source must redeliver the
+ * message. The other four members all mean the message was handled and must
+ * not be resent.
+ */
+export function isUnackedResult<T, R extends string = never>(
+    result: PipelineResult<T, R>
+): result is PipelineResultTimeout | PipelineResultRejected {
+    return result.type === PipelineResultType.TIMEOUT || result.type === PipelineResultType.REJECTED
 }

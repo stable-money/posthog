@@ -14,7 +14,7 @@ import { createMockPipeline } from '~/tests/helpers/mock-pipeline'
 
 import { createContext } from './helpers'
 import { PipelineConfig, ResultHandlingPipeline } from './result-handling-pipeline'
-import { dlq, drop, ok, redirect } from './results'
+import { dlq, drop, ok, redirect, rejected, timeout } from './results'
 
 // Mock the pipeline helpers
 jest.mock('~/ingestion/framework/result-handling-helpers', () => ({
@@ -410,6 +410,33 @@ describe('ResultHandlingPipeline', () => {
                 expect.any(Error),
                 'unknown'
             )
+        })
+
+        it.each([
+            ['timeout', timeout('budget exceeded before slowStep'), 'budget exceeded before slowStep'],
+            ['rejected', rejected('order gate held key'), 'order gate held key'],
+        ])('counts %s results without producing anything', async (label, result, details) => {
+            const messages: Message[] = [
+                { value: Buffer.from('unacked'), topic: 'test', partition: 0, offset: 1 } as Message,
+            ]
+
+            const chunkResults = [createContext(result, { message: messages[0], lastStep: 'slowStep' })]
+
+            const mockPipeline = createMockPipeline(chunkResults)
+            const resultPipeline = new ResultHandlingPipeline(mockPipeline, config)
+            const results = await resultPipeline.next()
+
+            expect(results).toHaveLength(1)
+            expect(results![0].result).toEqual(result)
+            expect(results![0].context.sideEffects).toHaveLength(0)
+            expect(mockProduceMessageToDLQ).not.toHaveBeenCalled()
+            expect(mockRedirectMessageToOutput).not.toHaveBeenCalled()
+            expect(mockLogDroppedMessage).not.toHaveBeenCalled()
+            expect(mockIngestionPipelineResultCounter.labels).toHaveBeenCalledWith({
+                result: label,
+                last_step_name: 'slowStep',
+                details,
+            })
         })
     })
 
