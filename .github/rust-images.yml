@@ -94,6 +94,12 @@
   dockerfile: ./rust/Dockerfile
   project: x5whcmg6rl
 
+# API + MCP server over the pgcollector stats database (Postgres telemetry).
+# Internal, edge-authenticated (Cognito ingress + Tailscale whois). See rust/pgapi.
+- image: pgapi
+  dockerfile: ./rust/Dockerfile
+  project: x5whcmg6rl
+
 - image: kafka-deduplicator
   dockerfile: ./rust/Dockerfile
   project: vznmbshh6q
