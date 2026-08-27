@@ -60,7 +60,7 @@ export function newBatchingPipeline<
         AfterBatchOutput<TOutput, COutput & BatchingContext, CBatch, R>,
         Record<string, never>
     >,
-    options?: Partial<BatchingPipelineOptions>,
+    options: BatchingPipelineOptions<CFeed>,
     builderContext?: PipelineBuilderContext<D>
 ): BatchingPipeline<TInput, TOutput, CInput, CBatch, COutput & BatchingContext, R, CFeed> {
     const startBuilder = new ChunkPipelineBuilder<

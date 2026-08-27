@@ -6,6 +6,7 @@ import { EventIngestionRestrictionManager } from '~/common/utils/event-ingestion
 import { PromiseScheduler } from '~/common/utils/promise-scheduler'
 import { createApplyEventRestrictionsStep, createParseHeadersStep } from '~/ingestion/common/steps/event-preprocessing'
 import { IngestionOverflowMode } from '~/ingestion/config'
+import { unlimitedBudgetFactory } from '~/ingestion/framework/batch-budget'
 import { BatchingContext, BatchingPipeline } from '~/ingestion/framework/batching-pipeline'
 import { newBatchingPipeline } from '~/ingestion/framework/builders'
 import { TopHogRegistry, createTopHogWrapper, sum, timer } from '~/ingestion/framework/extensions/tophog'
@@ -244,7 +245,7 @@ export function createSessionReplayPipeline(config: SessionReplayPipelineConfig)
         // One batch in flight at a time (also the framework default): a feed's elements carry the
         // recorder current when it was fed, so a concurrent batch could span a flush and record into a
         // stale recorder.
-        { concurrentBatches: 1 },
+        { budgetFactory: unlimitedBudgetFactory, concurrentBatches: 1 },
         { aggregateDebugContexts: aggregateKafkaDebugContexts }
     )
 }

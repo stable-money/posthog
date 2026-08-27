@@ -70,6 +70,7 @@
  *   `FeedResult`. To discard items, use sub-pipeline steps that return
  *   `drop()` results (chapter 7) - dropped items still count as completed.
  */
+import { unlimitedBudgetFactory } from '~/ingestion/framework/batch-budget'
 import { newBatchingPipeline } from '~/ingestion/framework/builders'
 import { createOkContext } from '~/ingestion/framework/helpers'
 import { isOkResult, ok } from '~/ingestion/framework/results'
@@ -102,7 +103,7 @@ describe('Batching Pipelines', () => {
                     afterBatchIds.push(input.batchId)
                     return Promise.resolve(ok(input))
                 }),
-            { concurrentBatches: Infinity }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: Infinity }
         )
 
         await pipeline.feed(
@@ -155,7 +156,7 @@ describe('Batching Pipelines', () => {
                     seenInAfter = input.batchContext.store
                     return Promise.resolve(ok(input))
                 }),
-            { concurrentBatches: Infinity }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: Infinity }
         )
 
         await pipeline.feed(
@@ -183,7 +184,7 @@ describe('Batching Pipelines', () => {
                 builder.pipe(function passThroughAfter(input) {
                     return Promise.resolve(ok(input))
                 }),
-            { concurrentBatches: 1 }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: 1 }
         )
 
         // First batch accepted
@@ -234,7 +235,7 @@ describe('Batching Pipelines', () => {
                 builder.pipe(function passThroughAfter(input) {
                     return Promise.resolve(ok(input))
                 }),
-            { concurrentBatches: 1 }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: 1 }
         )
 
         expect(await pipeline.feed([], {})).toEqual({ ok: true })
@@ -269,7 +270,7 @@ describe('Batching Pipelines', () => {
                 builder.pipe(function passThroughAfter(input) {
                     return Promise.resolve(ok(input))
                 }),
-            { concurrentBatches: 1 }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: 1 }
         )
 
         await expect(

@@ -1,5 +1,6 @@
 import pLimit from 'p-limit'
 
+import { BatchBudget, BatchBudgetFactory } from './batch-budget'
 import { ChunkPipeline, ChunkPipelineResultWithContext, OkResultWithContext } from './chunk-pipeline.interface'
 import { createOkContext } from './helpers'
 import { Pipeline, PipelineResultWithContext } from './pipeline.interface'
@@ -11,6 +12,8 @@ export type FeedResult = { ok: true } | { ok: false; kind: FeedRejectionKind; re
 
 export interface BatchingContext {
     messageId: number
+    /** The fed batch's time allowance, shared by every element of that batch. */
+    budget: BatchBudget
 }
 
 export interface BeforeBatchInput<TInput, CInput, CBatch = Record<never, object>> {
@@ -61,13 +64,17 @@ export interface BatchResult<T, CBatch = unknown> {
     sideEffects?: Promise<unknown>[]
 }
 
-export interface BatchingPipelineOptions {
-    concurrentBatches: number
+export interface BatchingPipelineOptions<CFeed = unknown> {
+    /**
+     * Mints the budget for each fed batch. Mandatory, because
+     * `unlimitedBudgetFactory` covers the pipelines with no time policy: there
+     * is no "no budget" state, only the unlimited budget.
+     */
+    budgetFactory: BatchBudgetFactory<CFeed>
+    concurrentBatches?: number
 }
 
-const BATCHING_PIPELINE_DEFAULTS: BatchingPipelineOptions = {
-    concurrentBatches: 1,
-}
+const DEFAULT_CONCURRENT_BATCHES = 1
 
 interface TrackedBatch<TOutput, CBatch, COutput, R extends string = never, CFeed extends object = object> {
     batchContext: CBatch & CFeed & { batchId: number }
@@ -91,7 +98,7 @@ interface TrackedBatch<TOutput, CBatch, COutput, R extends string = never, CFeed
  *   registered and no hooks run (a zero-message batch could never complete).
  * - feed() runs beforeBatch which returns enriched elements (same count as
  *   fed — count changes throw) and side effects. Elements are tagged with
- *   messageId, then fed to the sub-pipeline.
+ *   messageId and the batch's budget, then fed to the sub-pipeline.
  * - next() collects results. When all messages in a batch complete, calls
  *   afterBatch with the batchContext and ordered results, then returns a
  *   BatchResult with concatenated side effects.
@@ -146,7 +153,7 @@ export class BatchingPipeline<
     private feedLimit = pLimit(1)
     private pumpLimit = pLimit(1)
 
-    private options: BatchingPipelineOptions
+    private options: { concurrentBatches: number; budgetFactory: BatchBudgetFactory<CFeed> }
 
     constructor(
         private subPipeline: ChunkPipeline<
@@ -166,9 +173,12 @@ export class BatchingPipeline<
             AfterBatchOutput<TOutput, COutput, CBatchOutput, R>,
             Record<string, never>
         >,
-        options?: Partial<BatchingPipelineOptions>
+        options: BatchingPipelineOptions<CFeed>
     ) {
-        this.options = { ...BATCHING_PIPELINE_DEFAULTS, ...options }
+        this.options = {
+            budgetFactory: options.budgetFactory,
+            concurrentBatches: options.concurrentBatches ?? DEFAULT_CONCURRENT_BATCHES,
+        }
     }
 
     feed(elements: OkResultWithContext<TInput, CInput>[], batchContext: CFeed): Promise<FeedResult> {
@@ -233,6 +243,10 @@ export class BatchingPipeline<
 
         const messageIds: number[] = []
         const inflight = new Set<number>()
+        // One budget per fed batch, shared by every element of it. Minted here
+        // rather than in the factory's caller so the deadline the factory
+        // computed from the feed context applies to the whole batch.
+        const budget = this.options.budgetFactory(feedContext)
 
         const taggedElements = mappedElements.map((element) => {
             const messageId = this.nextMessageId++
@@ -251,6 +265,7 @@ export class BatchingPipeline<
                 context: {
                     ...element.context,
                     messageId,
+                    budget,
                 },
             }
         })

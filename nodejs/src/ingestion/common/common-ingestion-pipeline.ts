@@ -5,6 +5,7 @@ import { IngestionOutputs } from '~/common/outputs/ingestion-outputs'
 import { PromiseScheduler } from '~/common/utils/promise-scheduler'
 import { TeamManager } from '~/common/utils/team-manager'
 import { ChunkProcessingStep } from '~/ingestion/framework/base-chunk-pipeline'
+import { unlimitedBudgetFactory } from '~/ingestion/framework/batch-budget'
 import {
     AfterBatchInput,
     AfterBatchOutput,
@@ -649,7 +650,7 @@ export class CommonBuildStage<
                     .handleResults(pipelineConfig)
                     .handleSideEffects(promiseScheduler, sideEffectOptions),
             (builder) => afterBatchCallback(builder).handleSideEffects(promiseScheduler, sideEffectOptions),
-            concurrentBatches === undefined ? undefined : { concurrentBatches },
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches },
             { aggregateDebugContexts: aggregateKafkaDebugContexts }
         )
     }

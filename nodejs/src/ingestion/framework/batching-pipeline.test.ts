@@ -1,5 +1,6 @@
 import { Message } from 'node-rdkafka'
 
+import { BatchBudget, unlimitedBudgetFactory } from './batch-budget'
 import { BatchingPipeline } from './batching-pipeline'
 import { newBatchingPipeline } from './builders/helpers'
 import { OkResultWithContext } from './chunk-pipeline.interface'
@@ -47,7 +48,7 @@ describe('BatchingPipeline', () => {
             (builder) => builder.pipe(beforeBatchStep),
             (builder) => builder,
             (builder) => builder.pipe(afterBatchStep),
-            { concurrentBatches: Infinity, ...options }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: Infinity, ...options }
         )
     }
 
@@ -56,7 +57,7 @@ describe('BatchingPipeline', () => {
             (builder) => builder.pipe(beforeBatchStep),
             (builder) => builder.concurrently((b) => b.pipe((value) => Promise.resolve(ok(value)))),
             (builder) => builder.pipe(afterBatchStep),
-            { concurrentBatches: Infinity }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: Infinity }
         )
     }
 
@@ -73,6 +74,41 @@ describe('BatchingPipeline', () => {
         }
         return { allResults, allSideEffects }
     }
+
+    it('mints one budget per fed batch from the feed context and stamps it on every element', async () => {
+        const minted: BatchBudget[] = []
+        const seenFeedContexts: unknown[] = []
+        const collector = newBatchingPipeline<
+            any,
+            any,
+            MsgCtx,
+            NonNullable<unknown>,
+            MsgCtx,
+            never,
+            { streamId: number }
+        >(
+            (builder) => builder.pipe(beforeBatchStep),
+            (builder) => builder,
+            (builder) => builder.pipe(afterBatchStep),
+            {
+                budgetFactory: (feedContext) => {
+                    seenFeedContexts.push(feedContext)
+                    const budget = BatchBudget.unlimited()
+                    minted.push(budget)
+                    return budget
+                },
+                concurrentBatches: Infinity,
+            }
+        )
+
+        await collector.feed(makeBatch([1, 2]), { streamId: 7 })
+        await collector.feed(makeBatch([3]), { streamId: 8 })
+        const { allResults } = await drainAll(collector)
+
+        expect(seenFeedContexts).toEqual([{ streamId: 7 }, { streamId: 8 }])
+        expect(minted).toHaveLength(2)
+        expect(allResults.map((result) => result.context.budget)).toEqual([minted[0], minted[0], minted[1]])
+    })
 
     it('returns null when sub-pipeline is empty', async () => {
         const collector = createCollector()
@@ -257,7 +293,7 @@ describe('BatchingPipeline', () => {
                 ),
             (builder) => builder,
             (builder) => builder.pipe((input) => Promise.resolve(ok(input))),
-            { concurrentBatches: Infinity }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: Infinity }
         )
 
         await collector.feed(makeBatch([1, 2]), {})
@@ -292,7 +328,7 @@ describe('BatchingPipeline', () => {
                     capturedAfter.push(input.batchContext)
                     return Promise.resolve(ok(input))
                 }),
-            { concurrentBatches: Infinity }
+            { budgetFactory: unlimitedBudgetFactory, concurrentBatches: Infinity }
         )
 
         await collector.feed(makeBatch([1]), {})
