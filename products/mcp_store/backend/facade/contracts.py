@@ -16,6 +16,16 @@ class ActiveInstallation:
     name: str
     proxy_path: str
     scope: str = "personal"
-    # Set only for credentials delegated to a built-in agent. Kept out of reprs so the
+    # Set only for credentials delegated to an agent. Kept out of reprs so the
     # short-lived bearer cannot accidentally land in logs.
     proxy_token: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ServiceAccountSummary:
+    """A team agent identity (built-in agent or team-created service account)."""
+
+    id: str
+    name: str
+    kind: str  # "built_in" | "custom"
+    status: str  # "active" | "paused"
