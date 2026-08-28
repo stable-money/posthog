@@ -39,7 +39,12 @@ from posthog.hogql.property import (
 from posthog.hogql.query import execute_hogql_query
 from posthog.hogql.visitor import clear_locations
 
-from posthog.constants import TREND_FILTER_TYPE_ACTIONS, TREND_FILTER_TYPE_EVENTS, PropertyOperatorType
+from posthog.constants import (
+    PROPERTY_VALUE_NOT_SET_SENTINEL,
+    TREND_FILTER_TYPE_ACTIONS,
+    TREND_FILTER_TYPE_EVENTS,
+    PropertyOperatorType,
+)
 from posthog.models import Property, PropertyDefinition, Team
 from posthog.models.property import PropertyGroup
 from posthog.utils import relative_date_parse
@@ -467,6 +472,77 @@ class TestProperty(BaseTest):
             ),
         )
         self.assertIs(1, a.exprs[1].args[1].value)
+
+    def test_property_to_expr_not_set_sentinel(self):
+        # control: no sentinel in the list, output is unchanged from test_property_to_expr_event_list
+        self.assertEqual(
+            self._property_to_expr({"type": "event", "key": "a", "value": ["b", "c"], "operator": "exact"}),
+            self._parse_expr("properties.a in ('b', 'c')"),
+        )
+        self.assertEqual(
+            self._property_to_expr({"type": "event", "key": "a", "value": ["b", "c"], "operator": "in"}),
+            self._parse_expr("properties.a in ('b', 'c')"),
+        )
+
+        # exact with [b, c, sentinel] -> in (b, c) OR is null
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": ["b", "c", PROPERTY_VALUE_NOT_SET_SENTINEL], "operator": "exact"}
+            ),
+            self._parse_expr("properties.a in ('b', 'c') or properties.a = NULL"),
+        )
+        # is_not with [b, c, sentinel] -> not in (b, c) AND is not null
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": ["b", "c", PROPERTY_VALUE_NOT_SET_SENTINEL], "operator": "is_not"}
+            ),
+            self._parse_expr("properties.a not in ('b', 'c') and properties.a != NULL"),
+        )
+        # in / not_in share the exact/is_not code path
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": ["b", "c", PROPERTY_VALUE_NOT_SET_SENTINEL], "operator": "in"}
+            ),
+            self._parse_expr("properties.a in ('b', 'c') or properties.a = NULL"),
+        )
+        self.assertEqual(
+            self._property_to_expr(
+                {
+                    "type": "event",
+                    "key": "a",
+                    "value": ["b", "c", PROPERTY_VALUE_NOT_SET_SENTINEL],
+                    "operator": "not_in",
+                }
+            ),
+            self._parse_expr("properties.a not in ('b', 'c') and properties.a != NULL"),
+        )
+
+        # sentinel alone (as a list) collapses to exactly what is_not_set / is_set produce
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": [PROPERTY_VALUE_NOT_SET_SENTINEL], "operator": "exact"}
+            ),
+            self._property_to_expr({"type": "event", "key": "a", "value": "b", "operator": "is_not_set"}),
+        )
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": [PROPERTY_VALUE_NOT_SET_SENTINEL], "operator": "is_not"}
+            ),
+            self._property_to_expr({"type": "event", "key": "a", "value": "b", "operator": "is_set"}),
+        )
+        # sentinel alone as a bare scalar (not wrapped in a list) hits the same single-value path
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": PROPERTY_VALUE_NOT_SET_SENTINEL, "operator": "exact"}
+            ),
+            self._property_to_expr({"type": "event", "key": "a", "value": "b", "operator": "is_not_set"}),
+        )
+        self.assertEqual(
+            self._property_to_expr(
+                {"type": "event", "key": "a", "value": PROPERTY_VALUE_NOT_SET_SENTINEL, "operator": "is_not"}
+            ),
+            self._property_to_expr({"type": "event", "key": "a", "value": "b", "operator": "is_set"}),
+        )
 
     def test_property_to_expr_event_list_starts_with_ends_with(self):
         # positive operators combine multiple values with OR

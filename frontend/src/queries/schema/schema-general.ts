@@ -1958,6 +1958,16 @@ export type FunnelsFilter = {
     funnelOrderType?: FunnelsFilterLegacy['funnel_order_type']
     /** @default steps */
     funnelVizType?: FunnelsFilterLegacy['funnel_viz_type']
+    /**
+     * Whether the conversion window is allowed to run past the end of the date range.
+     * `clip` is PostHog's historical behaviour: every event of the funnel, later steps included,
+     * has to fall inside the date range, so anyone entering near `date_to` is counted as a
+     * drop-off before their conversion window has actually elapsed.
+     * `extend` bounds only the first step by the date range and lets the remaining steps land up
+     * to one conversion window after `date_to` — the semantics Mixpanel uses.
+     * @default clip
+     */
+    funnelWindowBoundary?: 'clip' | 'extend'
     /** @default 14 */
     funnelWindowInterval?: integer
     /** @default day */

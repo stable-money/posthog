@@ -20,6 +20,7 @@ import { PropertyFilterBetween } from 'lib/components/PropertyFilters/components
 import { PropertyFilterDatePicker } from 'lib/components/PropertyFilters/components/PropertyFilterDatePicker'
 import { propertyValueLogic } from 'lib/components/PropertyFilters/components/propertyValueLogic'
 import { isGroupCardFilterKey, propertyFilterTypeToPropertyDefinitionType } from 'lib/components/PropertyFilters/utils'
+import { PROPERTY_VALUE_NOT_SET_LABEL, PROPERTY_VALUE_NOT_SET_SENTINEL } from 'lib/constants'
 import { dayjs } from 'lib/dayjs'
 import { IconErrorOutline } from 'lib/lemon-ui/icons'
 import { LemonInputSelect } from 'lib/lemon-ui/LemonInputSelect/LemonInputSelect'
@@ -114,6 +115,17 @@ export function PropertyValue({
 
     const isNumericProperty = propertyKey && propertyType === PropertyType.Numeric
     const shouldRestrictToNumericInput = isNumericProperty && !isOperatorRegex(operator)
+
+    // "(not set)" (NULL) is only meaningful for a plain exact-match value list: never for
+    // icontains/regex/gt-lt/date operators (is_set/is_not_set already cover "unset" there), never
+    // for numeric properties, never for a DateTime-typed property, and never for a flag-dependency
+    // filter (evaluated by the flag matcher, not HogQL). Duration/assignee/group-key/distinct-id
+    // properties never reach the value list below, so they need no extra check here.
+    const canOfferNotSetValue =
+        (operator === PropertyOperator.Exact || operator === PropertyOperator.IsNot) &&
+        !isFlagDependencyProperty &&
+        !isNumericProperty &&
+        propertyType !== PropertyType.DateTime
 
     const isGroupKeyProperty = propertyKey === '$group_key' && groupTypeIndex != null
     const isDistinctIdProperty = propertyKey === 'distinct_id' && type === PropertyFilterType.Person
@@ -339,8 +351,14 @@ export function PropertyValue({
         )
     }
 
+    // Kept as the raw sentinel (not the "(not set)" label) when selected: this feeds the
+    // LemonInputSelect `value` prop below, which resolves display text by looking up each
+    // entry as an option *key* — see the injected not-set option in `options` further down.
     const formattedValues = (value === null || value === undefined ? [] : Array.isArray(value) ? value : [value]).map(
-        (label) => String(formatPropertyValueForDisplay(propertyKey, label, propertyDefinitionType, groupTypeIndex))
+        (label) =>
+            label === PROPERTY_VALUE_NOT_SET_SENTINEL
+                ? PROPERTY_VALUE_NOT_SET_SENTINEL
+                : String(formatPropertyValueForDisplay(propertyKey, label, propertyDefinitionType, groupTypeIndex))
     )
 
     if (!editable) {
@@ -351,7 +369,13 @@ export function PropertyValue({
             const displayValues = rawValues.map((key) => groupKeyNames[key] || key)
             return <>{displayValues.join(' or ')}</>
         }
-        return <>{formattedValues.join(' or ')}</>
+        return (
+            <>
+                {formattedValues
+                    .map((v) => (v === PROPERTY_VALUE_NOT_SET_SENTINEL ? PROPERTY_VALUE_NOT_SET_LABEL : v))
+                    .join(' or ')}
+            </>
+        )
     }
 
     if (isDurationProperty) {
@@ -511,6 +535,10 @@ export function PropertyValue({
                 title={titleNode}
                 popoverClassName="max-w-200"
                 options={[
+                    // First, so it's discoverable, rather than buried among fetched values.
+                    ...(canOfferNotSetValue
+                        ? [{ key: PROPERTY_VALUE_NOT_SET_SENTINEL, label: PROPERTY_VALUE_NOT_SET_LABEL }]
+                        : []),
                     ...displayOptions.map(({ name: _name }, index) => {
                         const name = toString(_name)
                         return {

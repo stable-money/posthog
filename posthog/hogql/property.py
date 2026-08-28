@@ -55,7 +55,12 @@ from posthog.hogql.utils import map_virtual_properties
 from posthog.hogql.visitor import CloningVisitor, TraversingVisitor, clone_expr
 
 from posthog.clickhouse.query_tagging import tag_contains_user_hogql
-from posthog.constants import AUTOCAPTURE_EVENT, TREND_FILTER_TYPE_ACTIONS, PropertyOperatorType
+from posthog.constants import (
+    AUTOCAPTURE_EVENT,
+    PROPERTY_VALUE_NOT_SET_SENTINEL,
+    TREND_FILTER_TYPE_ACTIONS,
+    PropertyOperatorType,
+)
 from posthog.dataclasses import frozen
 from posthog.interval_specs import get_interval_func
 from posthog.models import Property, PropertyDefinition, Team
@@ -590,7 +595,13 @@ def _validate_regex(value: ValueT) -> None:
 
 
 def _expr_to_compare_op(
-    expr: ast.Expr, value: ValueT, operator: PropertyOperator, property: Property, is_json_field: bool, team: Team
+    expr: ast.Expr,
+    value: ValueT,
+    operator: PropertyOperator,
+    property: Property,
+    is_json_field: bool,
+    team: Team,
+    honor_not_set: bool = True,
 ) -> ast.Expr:
     if operator == PropertyOperator.IS_SET:
         return ast.CompareOperation(
@@ -684,6 +695,10 @@ def _expr_to_compare_op(
             ],
         )
     elif operator == PropertyOperator.EXACT:
+        if honor_not_set and value == PROPERTY_VALUE_NOT_SET_SENTINEL:
+            # "(not set)" as the sole value: same as IS_NOT_SET, and skips the numeric/bool
+            # coercion helpers below since there's no real value for them to coerce.
+            return ast.CompareOperation(op=ast.CompareOperationOp.Eq, left=expr, right=ast.Constant(value=None))
         return ast.CompareOperation(
             op=ast.CompareOperationOp.Eq,
             left=expr,
@@ -701,6 +716,10 @@ def _expr_to_compare_op(
             right=_force_datetime(ast.Constant(value=_resolve_date_value(value, team))),
         )
     elif operator == PropertyOperator.IS_NOT:
+        if honor_not_set and value == PROPERTY_VALUE_NOT_SET_SENTINEL:
+            # "(not set)" as the sole value: same as IS_SET, and skips the numeric/bool
+            # coercion helpers below since there's no real value for them to coerce.
+            return ast.CompareOperation(op=ast.CompareOperationOp.NotEq, left=expr, right=ast.Constant(value=None))
         return ast.CompareOperation(
             op=ast.CompareOperationOp.NotEq,
             left=expr,
@@ -1348,12 +1367,45 @@ def property_to_expr(
                         if (is_exception_string_array_property or is_visited_page_property)
                         else expr
                     )
-                    coerced = cast(list, _coerce_numeric_value_for_string_property(value, property, team))
-                    compare_op = ast.CompareOperation(
-                        op=op,
-                        left=left,
-                        right=ast.Tuple(exprs=[ast.Constant(value=v) for v in coerced]),
+
+                    # "(not set)" only means something against the property's own value, not an
+                    # element of an extracted array (exception types / visited pages) -- those two
+                    # keep the sentinel as a literal value, same as before.
+                    has_not_set = (
+                        not (is_exception_string_array_property or is_visited_page_property)
+                        and PROPERTY_VALUE_NOT_SET_SENTINEL in value
                     )
+
+                    if has_not_set:
+                        rest = [v for v in value if v != PROPERTY_VALUE_NOT_SET_SENTINEL]
+                        null_check = ast.CompareOperation(
+                            op=ast.CompareOperationOp.Eq
+                            if op == ast.CompareOperationOp.In
+                            else ast.CompareOperationOp.NotEq,
+                            left=left,
+                            right=ast.Constant(value=None),
+                        )
+                        if not rest:
+                            compare_op = null_check
+                        else:
+                            coerced = cast(list, _coerce_numeric_value_for_string_property(rest, property, team))
+                            in_check = ast.CompareOperation(
+                                op=op,
+                                left=left,
+                                right=ast.Tuple(exprs=[ast.Constant(value=v) for v in coerced]),
+                            )
+                            compare_op = (
+                                ast.Or(exprs=[in_check, null_check])
+                                if op == ast.CompareOperationOp.In
+                                else ast.And(exprs=[in_check, null_check])
+                            )
+                    else:
+                        coerced = cast(list, _coerce_numeric_value_for_string_property(value, property, team))
+                        compare_op = ast.CompareOperation(
+                            op=op,
+                            left=left,
+                            right=ast.Tuple(exprs=[ast.Constant(value=v) for v in coerced]),
+                        )
 
                     if is_exception_string_array_property:
                         return parse_expr(
@@ -1425,6 +1477,9 @@ def property_to_expr(
             team=team,
             property=property,
             is_json_field=property.type != "session",
+            # "(not set)" is only meaningful against the property's own value, not an element of
+            # an extracted array (exception types / visited pages) -- see has_not_set above.
+            honor_not_set=not (is_exception_string_array_property or is_visited_page_property),
         )
 
         if is_exception_string_array_property:

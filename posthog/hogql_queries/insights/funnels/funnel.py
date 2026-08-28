@@ -13,7 +13,6 @@ from posthog.hogql_queries.insights.funnels.funnel_query_context import FunnelQu
 from posthog.hogql_queries.insights.funnels.funnel_validation_rules import validate_max_funnel_steps
 from posthog.hogql_queries.insights.funnels.utils import get_breakdown_cohort_name
 from posthog.hogql_queries.insights.utils.breakdowns import NOT_IN_COHORT_ID
-from posthog.utils import DATERANGE_MAP
 
 
 @runtime_checkable
@@ -74,9 +73,7 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
             self._extra_event_fields.append("person_id")
 
     def conversion_window_limit(self) -> int:
-        return int(
-            self.context.funnelWindowInterval * DATERANGE_MAP[self.context.funnelWindowIntervalUnit].total_seconds()
-        )
+        return self.context.conversion_window_seconds
 
     def matched_event_arrays_selects(self):
         # We use matched events to get timestamps for the funnel as well as recordings
@@ -171,6 +168,19 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
             # so we should be safe to pick any of the person_ids
             person_id_select = "any(person_id) as person_id,"
 
+        # Ordered and strict funnels get their entry pinned to the date range on step_0, in
+        # FunnelEventQuery._entry_cutoff_expr. Unordered funnels have no designated first step, so
+        # entry is the earliest matching event and it is pinned here instead. Without this, an
+        # "extend" scan would admit people whose only activity is after date_to.
+        placeholders: dict[str, ast.Expr] = {"inner_event_query": inner_event_query}
+        entry_guard = ""
+        if (
+            self.context.funnelWindowBoundary == "extend"
+            and self.context.funnelsFilter.funnelOrderType == StepOrderValue.UNORDERED
+        ):
+            entry_guard = " AND min(timestamp) <= {entry_cutoff}"
+            placeholders["entry_cutoff"] = ast.Constant(value=self.context.query_date_range.date_to())
+
         inner_select = parse_select(
             f"""
             SELECT
@@ -200,9 +210,9 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
                 aggregation_target
             FROM {{inner_event_query}}
             GROUP BY aggregation_target
-            HAVING step_reached >= 0
+            HAVING step_reached >= 0{entry_guard}
         """,
-            {"inner_event_query": inner_event_query},
+            placeholders,
         )
         return inner_select
 

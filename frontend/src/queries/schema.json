@@ -28230,6 +28230,15 @@
                     "$ref": "#/definitions/FunnelVizType",
                     "default": "steps"
                 },
+                "funnelWindowBoundary": {
+                    "default": "clip",
+                    "description": "Whether the conversion window is allowed to run past the end of the date range.\n`clip` is PostHog's historical behaviour: every event of the funnel, later steps included,\nhas to fall inside the date range, so anyone entering near `date_to` is counted as a\ndrop-off before their conversion window has actually elapsed.\n`extend` bounds only the first step by the date range and lets the remaining steps land up\nto one conversion window after `date_to` \u2014 the semantics Mixpanel uses.",
+                    "enum": [
+                        "clip",
+                        "extend"
+                    ],
+                    "type": "string"
+                },
                 "funnelWindowInterval": {
                     "$ref": "#/definitions/integer",
                     "default": 14

@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 from posthog.schema import (
     BreakdownAttributionType,
@@ -16,9 +16,14 @@ from posthog.hogql.constants import LimitContext
 from posthog.hogql.timings import HogQLTimings
 
 from posthog.hogql_queries.insights.query_context import QueryContext
+from posthog.hogql_queries.utils.query_date_range import QueryDateRange
 from posthog.models.property.util import box_value
 from posthog.models.team.team import Team
 from posthog.models.user import User
+from posthog.utils import DATERANGE_MAP
+
+
+FunnelWindowBoundary = Literal["clip", "extend"]
 
 
 class FunnelQueryContext(QueryContext):
@@ -117,6 +122,24 @@ class FunnelQueryContext(QueryContext):
     @property
     def funnelWindowIntervalUnit(self) -> FunnelConversionWindowTimeUnit:
         return self.funnelsFilter.funnelWindowIntervalUnit or FunnelConversionWindowTimeUnit.DAY
+
+    @property
+    def query_date_range(self) -> QueryDateRange:
+        return QueryDateRange(
+            date_range=self.query.dateRange,
+            team=self.team,
+            interval=self.query.interval,
+            now=self.now,
+        )
+
+    @property
+    def conversion_window_seconds(self) -> int:
+        return int(self.funnelWindowInterval * DATERANGE_MAP[self.funnelWindowIntervalUnit].total_seconds())
+
+    @property
+    def funnelWindowBoundary(self) -> FunnelWindowBoundary:
+        """Whether the conversion window may run past date_to. See FunnelsFilter.funnelWindowBoundary."""
+        return self.funnelsFilter.funnelWindowBoundary or "clip"
 
     @property
     def max_steps(self) -> int:

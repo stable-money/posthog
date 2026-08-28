@@ -28081,6 +28081,17 @@ class FunnelsFilter(BaseModel):
         description=("To select the range of steps for trends & time to convert funnels, 0-indexed"),
     )
     funnelVizType: FunnelVizType | None = FunnelVizType.STEPS
+    funnelWindowBoundary: Literal["clip", "extend"] | None = Field(
+        default="clip",
+        description=(
+            "Whether the conversion window is allowed to run past the end of the date range."
+            " `clip` is PostHog's historical behaviour: every event of the funnel, later steps"
+            " included, has to fall inside the date range, so anyone entering near `date_to` is"
+            " counted as a drop-off before their conversion window has actually elapsed. `extend`"
+            " bounds only the first step by the date range and lets the remaining steps land up to"
+            " one conversion window after `date_to` \u2014 the semantics Mixpanel uses."
+        ),
+    )
     funnelWindowInterval: int | None = 14
     funnelWindowIntervalUnit: FunnelConversionWindowTimeUnit | None = FunnelConversionWindowTimeUnit.DAY
     goalLines: list[GoalLine] | None = Field(default=None, description="Goal Lines")
