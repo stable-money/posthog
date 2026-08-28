@@ -858,10 +858,13 @@ export class PiAgentServer {
     await runtime.client.abort();
     const prompted = await send("prompt");
     if (prompted.success) {
-      return prompted;
+      return { ...prompted, steered: true };
     }
     const afterPrompt = await runtime.client.getState();
-    return afterPrompt.isStreaming ? send("follow_up") : prompted;
+    if (afterPrompt.isStreaming) {
+      return send("follow_up");
+    }
+    return { ...prompted, steered: false, reason: "pi_delivery_failed" };
   }
 
   private installSseController(sseController: SseController | null): void {

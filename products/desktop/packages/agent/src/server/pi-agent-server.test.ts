@@ -430,12 +430,13 @@ describe("PiAgentServer", () => {
       },
     };
 
-    await server.executeCommand("user_message", {
+    const result = await server.executeCommand("user_message", {
       content: "stop, do this instead",
       messageId: "message-1",
       steer: true,
     });
 
+    expect(result).toMatchObject({ steered: true });
     expect(order).toEqual(["abort", "sendCommand"]);
     expect(sendCommand).toHaveBeenCalledTimes(1);
     expect(sendCommand).toHaveBeenCalledWith({
@@ -483,6 +484,7 @@ describe("PiAgentServer", () => {
       images: [],
     });
     expect(result).toMatchObject({ success: true });
+    expect(result).not.toHaveProperty("steered");
   });
 
   it("declines a steer whose re-prompt fails while pi stays idle so the host redelivers", async () => {
@@ -529,7 +531,49 @@ describe("PiAgentServer", () => {
       message: "stop, do this instead",
       images: [],
     });
-    expect(result).toMatchObject({ success: false });
+    expect(result).toMatchObject({
+      success: false,
+      steered: false,
+      reason: "pi_delivery_failed",
+    });
+  });
+
+  it("sends a steer that arrives while pi is idle as a prompt, without asking for redelivery", async () => {
+    const sendCommand = vi.fn(async (_command: Record<string, unknown>) => ({
+      success: true,
+    }));
+    const abort = vi.fn(async () => {});
+    const server = new PiAgentServer(config()) as unknown as {
+      session: unknown;
+      executeCommand(
+        method: string,
+        params: Record<string, unknown>,
+      ): Promise<unknown>;
+    };
+    server.session = {
+      runtime: {
+        client: {
+          getState: vi.fn(async () => ({ isStreaming: false })),
+          abort,
+        },
+        sendCommand,
+      },
+    };
+
+    const result = await server.executeCommand("user_message", {
+      content: "stop, do this instead",
+      messageId: "message-5",
+      steer: true,
+    });
+
+    expect(abort).not.toHaveBeenCalled();
+    expect(sendCommand).toHaveBeenCalledWith({
+      id: "message-5",
+      type: "prompt",
+      message: "stop, do this instead",
+      images: [],
+    });
+    expect(result).not.toHaveProperty("steered");
   });
 
   it("queues a mid-turn message that is not a steer instead of aborting", async () => {
@@ -554,11 +598,12 @@ describe("PiAgentServer", () => {
       },
     };
 
-    await server.executeCommand("user_message", {
+    const result = await server.executeCommand("user_message", {
       content: "when you are done, also update the docs",
       messageId: "message-2",
     });
 
+    expect(result).not.toHaveProperty("steered");
     expect(abort).not.toHaveBeenCalled();
     expect(sendCommand).toHaveBeenCalledWith({
       id: "message-2",
