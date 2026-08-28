@@ -175,7 +175,21 @@ def _is_agent_shadow_enabled(ctx: TaskProcessingContext) -> bool:
         return False
 
 
+def _has_agent_shadow_launch_marker(ctx: TaskProcessingContext, sandbox: SandboxBase) -> bool:
+    try:
+        result = sandbox.execute(
+            f'test "$(head -c 128 /tmp/agent-shadow-launched 2>/dev/null || true)" = {shlex.quote(ctx.run_id)}',
+            timeout_seconds=10,
+        )
+    except Exception:
+        logger.exception("agent_shadow_launch_marker_read_failed", run_id=ctx.run_id, sandbox_id=sandbox.id)
+        return False
+    return result.exit_code == 0
+
+
 def _launch_agent_shadow(ctx: TaskProcessingContext, sandbox: SandboxBase) -> bool:
+    if current_activity_attempt() > 1 and _has_agent_shadow_launch_marker(ctx, sandbox):
+        return True
     if not _is_agent_shadow_enabled(ctx):
         return False
     if sandbox.config.snapshot_restored and sandbox.config.snapshot_kind != SNAPSHOT_KIND_DIRECTORY:
@@ -206,7 +220,7 @@ def _launch_agent_shadow(ctx: TaskProcessingContext, sandbox: SandboxBase) -> bo
     return True
 
 
-def _read_agent_shadow_result(sandbox: SandboxBase, run_id: str) -> dict[str, str | int | bool]:
+def _read_agent_shadow_result(sandbox: SandboxBase, run_id: str) -> dict[str, str | bool | int]:
     process = f"[a]gent-shadow --boot-id {run_id}"
     quoted_run_id = shlex.quote(run_id)
     try:
@@ -227,7 +241,7 @@ def _read_agent_shadow_result(sandbox: SandboxBase, run_id: str) -> dict[str, st
     lines = result.stdout.splitlines()
     if not lines or lines[0] != run_id:
         return {}
-    observation: dict[str, str | int | bool] = {"launched": True}
+    observation: dict[str, str | bool | int] = {"launched": True}
     if len(lines) == 1:
         return observation
     if lines[1] == "timed_out":
@@ -286,6 +300,12 @@ class StartAgentServerInput:
     boot_excluded_ms: int = 0
 
 
+@frozen
+class CollectAgentShadowResultInput:
+    sandbox_id: str
+    run_id: str
+
+
 @dataclass
 class MarkRepoReadyInput:
     sandbox_id: str
@@ -305,7 +325,8 @@ class StartAgentServerOutput:
     session_init_ms: int | None = None
     boot_phases_ms: dict[str, int] = field(default_factory=dict)
     boot_total_ms: int | None = None
-    shadow_observation: dict[str, str | int | bool] = field(default_factory=dict)
+    shadow_observation: dict[str, str | bool | int] = field(default_factory=dict)
+    shadow_launched: bool = False
 
 
 @frozen
@@ -625,7 +646,7 @@ def start_agent_server(input: StartAgentServerInput) -> StartAgentServerOutput:
         with StepTimer(
             "agent_server_ready", boot_path=input.boot_path, origin_product=ctx.origin_product, runtime=runtime
         ) as ready_timer:
-            _launch_agent_shadow(ctx, sandbox)
+            shadow_launched = _launch_agent_shadow(ctx, sandbox)
             _invoke_start_agent_server(sandbox, ctx, params, repo_ready_file=None, wait_for_health=True)
 
         _record_network_enforcement_observation(ctx)
@@ -640,7 +661,6 @@ def start_agent_server(input: StartAgentServerInput) -> StartAgentServerOutput:
             )
 
         boot_total_ms = _record_boot_total(input)
-        shadow_observation = _read_agent_shadow_result(sandbox, ctx.run_id)
 
         _spawn_post_ready_diagnostics(ctx, sandbox, params.agentsh_domains)
 
@@ -651,7 +671,7 @@ def start_agent_server(input: StartAgentServerInput) -> StartAgentServerOutput:
             session_init_ms=session_init_ms,
             boot_phases_ms=boot_phases_ms,
             boot_total_ms=boot_total_ms,
-            shadow_observation=shadow_observation,
+            shadow_launched=shadow_launched,
         )
 
 
@@ -675,7 +695,7 @@ def launch_agent_server(input: StartAgentServerInput) -> StartAgentServerOutput:
         with StepTimer(
             "agent_server_launch", boot_path=input.boot_path, origin_product=ctx.origin_product, runtime=runtime
         ) as launch_timer:
-            _launch_agent_shadow(ctx, sandbox)
+            shadow_launched = _launch_agent_shadow(ctx, sandbox)
             _invoke_start_agent_server(sandbox, ctx, params, repo_ready_file=repo_ready_file, wait_for_health=False)
 
         activity.logger.info(f"Agent server process launched for task {ctx.task_id}")
@@ -683,6 +703,7 @@ def launch_agent_server(input: StartAgentServerInput) -> StartAgentServerOutput:
             sandbox_url=input.sandbox_url,
             connect_token=input.sandbox_connect_token,
             launch_ms=launch_timer.elapsed_ms,
+            shadow_launched=shadow_launched,
         )
 
 
@@ -775,7 +796,6 @@ def await_agent_server_ready(input: StartAgentServerInput) -> StartAgentServerOu
             )
 
         boot_total_ms = _record_boot_total(input)
-        shadow_observation = _read_agent_shadow_result(sandbox, ctx.run_id)
 
         _spawn_post_ready_diagnostics(ctx, sandbox, agentsh_domains)
 
@@ -786,5 +806,11 @@ def await_agent_server_ready(input: StartAgentServerInput) -> StartAgentServerOu
             session_init_ms=session_init_ms,
             boot_phases_ms=boot_phases_ms,
             boot_total_ms=boot_total_ms,
-            shadow_observation=shadow_observation,
         )
+
+
+@activity.defn
+@asyncify
+def collect_agent_shadow_result(input: CollectAgentShadowResultInput) -> dict[str, str | bool | int]:
+    sandbox = get_sandbox_class_for_sandbox_id(input.sandbox_id).get_by_id(input.sandbox_id)
+    return _read_agent_shadow_result(sandbox, input.run_id)
