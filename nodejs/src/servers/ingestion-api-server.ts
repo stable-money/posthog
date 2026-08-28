@@ -107,7 +107,7 @@ import {
     RedisPool,
 } from '../types'
 import { BaseServerConfig, CleanupResources, NodeServer, ServerLifecycle } from './base-server'
-import { GrpcBatchContext, GrpcStreamIngestDriver } from './grpc-stream-ingest-driver'
+import { GrpcBatchContext, GrpcStreamIngestDriver, createWireBudgetFactory } from './grpc-stream-ingest-driver'
 
 export type IngestionApiServerConfig = BaseServerConfig &
     IngestionConsumerConfig &
@@ -478,7 +478,11 @@ export class IngestionApiServer implements NodeServer {
                 JoinedIngestionPipelineInput,
                 JoinedIngestionPipelineContext,
                 GrpcBatchContext
-            >(joinedPipelineConfig, joinedPipelineDeps)
+            >(joinedPipelineConfig, joinedPipelineDeps, {
+                // Only the gRPC path carries budgets: they arrive on the wire,
+                // and the HTTP path has no field to carry them.
+                budgetFactory: createWireBudgetFactory(this.config.INGESTION_API_GRPC_BUDGET_ENFORCED),
+            })
             this.grpcServer = new WorkerIngestServer(
                 {
                     port: this.config.INGESTION_API_GRPC_PORT,

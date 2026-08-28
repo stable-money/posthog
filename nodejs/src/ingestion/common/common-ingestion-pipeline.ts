@@ -5,7 +5,7 @@ import { IngestionOutputs } from '~/common/outputs/ingestion-outputs'
 import { PromiseScheduler } from '~/common/utils/promise-scheduler'
 import { TeamManager } from '~/common/utils/team-manager'
 import { ChunkProcessingStep } from '~/ingestion/framework/base-chunk-pipeline'
-import { unlimitedBudgetFactory } from '~/ingestion/framework/batch-budget'
+import { BatchBudgetFactory, unlimitedBudgetFactory } from '~/ingestion/framework/batch-budget'
 import {
     AfterBatchInput,
     AfterBatchOutput,
@@ -100,6 +100,20 @@ export interface CommonIngestionPipelineConfig<ROut extends string = never> {
      * drivers never see them on `BatchResult.sideEffects`. Defaults to false.
      */
     awaitSideEffects?: boolean
+}
+
+/**
+ * What `.build()` needs on top of the pipeline config. It sits here rather than
+ * on {@link CommonIngestionPipelineConfig} because the feed context type only
+ * exists at `.build()`, and the budget factory reads that context.
+ */
+export interface BuildOptions<CFeed> {
+    /**
+     * Mints the time allowance of each fed batch from its feed context.
+     * Defaults to unlimited budgets, which is what a pipeline with no time
+     * policy wants.
+     */
+    budgetFactory?: BatchBudgetFactory<CFeed>
 }
 
 /** Element type entering the per-batch sub-pipeline: input enriched by the beforeBatch hooks. */
@@ -520,16 +534,12 @@ export class CommonTeamStage<
         return new CommonBuildStage(this.config, this.beforeBatchCallback, this.completeTransform(), callback)
     }
 
-    build<CFeed extends object = Record<never, never>>(): BatchingPipeline<
-        TInput,
-        TCurrent,
-        TContext,
-        CBatch,
-        BatchContext<TContext>,
-        ROut,
-        CFeed
-    > {
-        return new CommonBuildStage(this.config, this.beforeBatchCallback, this.completeTransform()).build<CFeed>()
+    build<CFeed extends object = Record<never, never>>(
+        options?: BuildOptions<CFeed>
+    ): BatchingPipeline<TInput, TCurrent, TContext, CBatch, BatchContext<TContext>, ROut, CFeed> {
+        return new CommonBuildStage(this.config, this.beforeBatchCallback, this.completeTransform()).build<CFeed>(
+            options
+        )
     }
 
     private completeTransform(): SubpipelineTransform<TInput, TContext, CBatch, TCurrent, ROut> {
@@ -621,15 +631,9 @@ export class CommonBuildStage<
         private readonly afterBatchCallback?: AfterBatchCallback<TFinal, TContext, CBatch, ROut>
     ) {}
 
-    build<CFeed extends object = Record<never, never>>(): BatchingPipeline<
-        TInput,
-        TFinal,
-        TContext,
-        CBatch,
-        BatchContext<TContext>,
-        ROut,
-        CFeed
-    > {
+    build<CFeed extends object = Record<never, never>>(
+        options?: BuildOptions<CFeed>
+    ): BatchingPipeline<TInput, TFinal, TContext, CBatch, BatchContext<TContext>, ROut, CFeed> {
         const { outputs, promiseScheduler, concurrentBatches, awaitSideEffects } = this.config
         const pipelineConfig: PipelineConfig<ROut> = { outputs, promiseScheduler }
         const sideEffectOptions = { await: awaitSideEffects ?? false }
@@ -650,7 +654,7 @@ export class CommonBuildStage<
                     .handleResults(pipelineConfig)
                     .handleSideEffects(promiseScheduler, sideEffectOptions),
             (builder) => afterBatchCallback(builder).handleSideEffects(promiseScheduler, sideEffectOptions),
-            { budgetFactory: unlimitedBudgetFactory, concurrentBatches },
+            { budgetFactory: options?.budgetFactory ?? unlimitedBudgetFactory, concurrentBatches },
             { aggregateDebugContexts: aggregateKafkaDebugContexts }
         )
     }

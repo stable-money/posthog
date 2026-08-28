@@ -79,3 +79,13 @@ export type BatchBudgetFactory<CFeed> = (batchContext: CFeed) => BatchBudget
 
 /** The factory for pipelines with no time policy. */
 export const unlimitedBudgetFactory: BatchBudgetFactory<unknown> = () => BatchBudget.unlimited()
+
+/**
+ * The absolute deadline of a relative allowance armed at `armedAt`, or `null`
+ * when the allowance is `0`, which means no deadline. Allowances arrive as
+ * durations rather than instants so that a sender's clock never enters the
+ * arithmetic; arming them at one point makes every wait since then count.
+ */
+export function budgetDeadline(armedAt: number, budgetMs: number): number | null {
+    return budgetMs === 0 ? null : armedAt + budgetMs
+}

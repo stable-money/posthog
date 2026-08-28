@@ -1,7 +1,8 @@
 import { PromiseScheduler } from '~/common/utils/promise-scheduler'
-import { CompletedSubBatch, StreamIngestDriver } from '~/ingestion/api/grpc-server'
+import { CompletedSubBatch, StreamIngestDriver, SubBatchBudget } from '~/ingestion/api/grpc-server'
 import { deserializeKafkaMessage } from '~/ingestion/api/kafka-message-converter'
 import { SerializedKafkaMessage } from '~/ingestion/api/types'
+import { BatchBudget, BatchBudgetFactory, budgetDeadline } from '~/ingestion/framework/batch-budget'
 import { FeedResult } from '~/ingestion/framework/batching-pipeline'
 import { createKafkaDebugContext, createOkContext } from '~/ingestion/framework/helpers'
 import {
@@ -10,8 +11,22 @@ import {
     createJoinedIngestionPipeline,
 } from '~/ingestion/pipelines/analytics/joined-ingestion-pipeline'
 
-/** Batch context fed with each gRPC sub-batch so its completion routes back to the right stream. */
-export type GrpcBatchContext = { grpcStreamId: number; grpcSeq: number }
+/**
+ * Batch context fed with each gRPC sub-batch: the stream coordinates that route
+ * its completion back to the right stream, plus the armed wire allowance the
+ * budget factory turns into a deadline.
+ */
+export type GrpcBatchContext = { grpcStreamId: number; grpcSeq: number } & SubBatchBudget
+
+/**
+ * Mints each sub-batch's budget from what the consumer sent, and nothing else.
+ * `enforce` is the worker's rollout gate: in shadow mode the checkpoints count
+ * what they would have cut off and every result stays as it is.
+ */
+export function createWireBudgetFactory(enforce: boolean): BatchBudgetFactory<GrpcBatchContext> {
+    return ({ armedAt, softBudgetMs }) =>
+        BatchBudget.softDeadline(budgetDeadline(armedAt, softBudgetMs) ?? Infinity, { enforce })
+}
 
 export type GrpcIngestPipeline = ReturnType<
     typeof createJoinedIngestionPipeline<JoinedIngestionPipelineInput, JoinedIngestionPipelineContext, GrpcBatchContext>
@@ -29,12 +44,17 @@ export class GrpcStreamIngestDriver implements StreamIngestDriver {
         private promiseScheduler: PromiseScheduler
     ) {}
 
-    feed(streamId: number, seq: number, messages: SerializedKafkaMessage[]): Promise<FeedResult> {
+    feed(
+        streamId: number,
+        seq: number,
+        messages: SerializedKafkaMessage[],
+        budget: SubBatchBudget
+    ): Promise<FeedResult> {
         const batch = messages.map((serialized) => {
             const message = deserializeKafkaMessage(serialized)
             return createOkContext({ message }, { message, debugContext: createKafkaDebugContext(message) })
         })
-        return this.pipeline.feed(batch, { grpcStreamId: streamId, grpcSeq: seq })
+        return this.pipeline.feed(batch, { grpcStreamId: streamId, grpcSeq: seq, ...budget })
     }
 
     async next(): Promise<CompletedSubBatch | null> {

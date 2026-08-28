@@ -9,7 +9,7 @@ import { EventIngestionRestrictionManager } from '~/common/utils/event-ingestion
 import { EventSchemaEnforcementManager } from '~/common/utils/event-schema-enforcement-manager'
 import { PromiseScheduler } from '~/common/utils/promise-scheduler'
 import { TeamManager } from '~/common/utils/team-manager'
-import { newCommonIngestionPipeline } from '~/ingestion/common/common-ingestion-pipeline'
+import { BuildOptions, newCommonIngestionPipeline } from '~/ingestion/common/common-ingestion-pipeline'
 import { CookielessManager } from '~/ingestion/common/cookieless/cookieless-manager'
 import { EventFilterManager } from '~/ingestion/common/event-filters'
 import { FeatureFlagCalledDedupService } from '~/ingestion/common/feature-flag-called-dedup/feature-flag-called-dedup-service'
@@ -122,7 +122,7 @@ export function createJoinedIngestionPipeline<
     TInput extends JoinedIngestionPipelineInput,
     TContext extends JoinedIngestionPipelineContext,
     CFeed extends object = Record<never, never>,
->(config: JoinedIngestionPipelineConfig, deps: JoinedIngestionPipelineDeps) {
+>(config: JoinedIngestionPipelineConfig, deps: JoinedIngestionPipelineDeps, options?: BuildOptions<CFeed>) {
     const {
         eventSchemaEnforcementEnabled,
         overflowMode,
@@ -241,6 +241,6 @@ export function createJoinedIngestionPipeline<
                     .pipe(createFlushEventUsageStep())
                     .pipe(createFlushHogTransformerStep(hogTransformer))
             )
-            .build<CFeed>()
+            .build<CFeed>(options)
     )
 }
