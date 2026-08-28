@@ -477,21 +477,6 @@ export function ProjectTree({
                     root === 'custom-products://'
                 ) {
                     const key = item.record?.sceneKey
-                    const reason = item.record?.reason as UserProductListReason | undefined
-                    const reasonText = item.record?.reason_text as string | null | undefined
-
-                    const suggestedProductBaseTooltipText =
-                        reasonText || (reason ? USER_PRODUCT_LIST_REASON_DEFAULTS[reason] : undefined)
-                    const tooltipText = suggestedProductBaseTooltipText ? (
-                        <>
-                            {suggestedProductBaseTooltipText}
-                            <br />
-                            <br />
-                            Open the three-dot menu to remove from the sidebar.
-                            <br />
-                            <br />
-                        </>
-                    ) : undefined
 
                     return (
                         <>
@@ -500,7 +485,6 @@ export function ProjectTree({
                                     <p className="mb-1 font-semibold">{item.displayName}</p>
                                 </>
                             )}
-                            {tooltipText}
                             {sceneConfigurations[key]?.description || item.name}
 
                             {item.tags?.length && (
