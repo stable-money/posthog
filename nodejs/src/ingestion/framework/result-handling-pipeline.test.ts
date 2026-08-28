@@ -414,7 +414,7 @@ describe('ResultHandlingPipeline', () => {
 
         it.each([
             ['timeout', timeout('budget exceeded before slowStep'), 'budget exceeded before slowStep'],
-            ['rejected', rejected('order gate held key'), 'order gate held key'],
+            ['rejected', rejected('refused to keep key order'), 'refused to keep key order'],
         ])('counts %s results without producing anything', async (label, result, details) => {
             const messages: Message[] = [
                 { value: Buffer.from('unacked'), topic: 'test', partition: 0, offset: 1 } as Message,

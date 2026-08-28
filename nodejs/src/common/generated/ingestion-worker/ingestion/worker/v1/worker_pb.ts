@@ -294,8 +294,8 @@ export type SubBatchAck = Message<'ingestion.worker.v1.SubBatchAck'> & {
     timedOut: number[]
 
     /**
-     * Indices the worker never attempted: the order gate refused them to keep
-     * per-key order. Set only on PARTIAL.
+     * Indices the worker refused without attempting, to keep per-key order.
+     * Reserved: no current worker produces this. Set only on PARTIAL.
      *
      * @generated from field: repeated uint32 rejected = 6;
      */

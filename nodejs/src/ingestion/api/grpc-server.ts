@@ -80,7 +80,7 @@ export interface CompletedSubBatch {
     accepted: number
     /** Positions in the sub-batch's messages the budget cut off, in feed order. */
     timedOut: number[]
-    /** Positions the worker never attempted: the order gate refused them, in feed order. */
+    /** Positions the worker refused without attempting, in feed order. No current path produces these. */
     rejected: number[]
     /**
      * Resolves when the batch's side effects are durably done — the ack
