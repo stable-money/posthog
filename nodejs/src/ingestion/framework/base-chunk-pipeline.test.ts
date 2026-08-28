@@ -13,6 +13,8 @@ import {
     createNewChunkPipeline,
     createOkContext,
 } from './helpers'
+import { batchBudgetCheckpointCounter } from './metrics'
+import { getBudgetCheckpoints } from './metrics.test-utils'
 import { dlq, drop, isTimeoutResult, ok } from './results'
 
 jest.mock('~/common/utils/logger', () => ({
@@ -34,6 +36,10 @@ function createTestMessage(overrides: Partial<Message> = {}): Message {
 }
 
 describe('BaseChunkPipeline', () => {
+    beforeEach(() => {
+        batchBudgetCheckpointCounter.reset()
+    })
+
     describe('basic functionality', () => {
         it('times out the exhausted elements of a mixed-budget chunk and runs the step on the rest', async () => {
             const exhausted = BatchBudget.softDeadline(Date.now() + 1000)
@@ -75,6 +81,8 @@ describe('BaseChunkPipeline', () => {
 
             expect(seen).toEqual([{ id: 1 }])
             expect(results![0].result).toEqual(ok({ id: 10 }))
+            // Shadow mode still records what enforcement would have cut off.
+            expect(await getBudgetCheckpoints('chunk', 'enrichChunk', 'shadow')).toBe(1)
         })
 
         it('should process batch through pipeline', async () => {

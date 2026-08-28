@@ -3,6 +3,7 @@ import pLimit from 'p-limit'
 import { BatchBudget, BatchBudgetFactory } from './batch-budget'
 import { ChunkPipeline, ChunkPipelineResultWithContext, OkResultWithContext } from './chunk-pipeline.interface'
 import { createOkContext } from './helpers'
+import { batchBudgetExhaustedCounter, batchBudgetOverrunHistogram, budgetMode } from './metrics'
 import { Pipeline, PipelineResultWithContext } from './pipeline.interface'
 import { PipelineResult, isOkResult } from './results'
 
@@ -76,8 +77,22 @@ export interface BatchingPipelineOptions<CFeed = unknown> {
 
 const DEFAULT_CONCURRENT_BATCHES = 1
 
+/**
+ * Record how far a completed batch overran its budget. This is the tail the
+ * checkpoints cannot cut, because they only stop work from starting.
+ */
+function recordBudgetOutcome(budget: BatchBudget): void {
+    if (!budget.exhausted || budget.softAt === Infinity) {
+        return
+    }
+    const mode = budgetMode(budget.enforce)
+    batchBudgetExhaustedCounter.labels({ mode }).inc()
+    batchBudgetOverrunHistogram.labels({ mode }).observe(Math.max(0, Date.now() - budget.softAt) / 1000)
+}
+
 interface TrackedBatch<TOutput, CBatch, COutput, R extends string = never, CFeed extends object = object> {
     batchContext: CBatch & CFeed & { batchId: number }
+    budget: BatchBudget
     messageIds: number[]
     inflight: Set<number>
     results: Map<number, PipelineResultWithContext<TOutput, COutput, R>>
@@ -278,6 +293,7 @@ export class BatchingPipeline<
         // drop it.
         this.batches.set(batchId, {
             batchContext: { ...batchContext, ...feedContext },
+            budget,
             messageIds,
             inflight,
             results: new Map(),
@@ -352,6 +368,7 @@ export class BatchingPipeline<
                 batch.results.set(messageId, resultWithContext)
 
                 if (batch.inflight.size === 0) {
+                    recordBudgetOutcome(batch.budget)
                     const orderedResults = batch.messageIds.map((id) => batch.results.get(id)!)
                     this.batches.delete(batchId)
                     for (const id of batch.messageIds) {

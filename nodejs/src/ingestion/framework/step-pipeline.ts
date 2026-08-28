@@ -1,7 +1,7 @@
 import { instrumentFn } from '~/common/tracing/tracing-utils'
 import { logger } from '~/common/utils/logger'
 
-import { pipelineStepDurationHistogram } from './metrics'
+import { pipelineStepDurationHistogram, recordBudgetCheckpoint } from './metrics'
 import { OkResultWithContext, Pipeline, PipelineResultWithContext } from './pipeline.interface'
 import { PipelineResult, PipelineResultType, isOkResult, timeout } from './results'
 import { ProcessingStep } from './steps'
@@ -43,10 +43,13 @@ export class StepPipeline<TInput, TIntermediate, TOutput, C, RPrev extends strin
         // lastStep keeps naming the step that ran, because that is the step
         // that spent the time; the reason names the step that never started.
         const budget = previousResultWithContext.context.budget
-        if (budget?.exhausted && budget.enforce) {
-            return {
-                result: timeout(`budget exceeded before ${this.stepName}`),
-                context: previousResultWithContext.context,
+        if (budget?.exhausted) {
+            recordBudgetCheckpoint('step', this.stepName, budget.enforce)
+            if (budget.enforce) {
+                return {
+                    result: timeout(`budget exceeded before ${this.stepName}`),
+                    context: previousResultWithContext.context,
+                }
             }
         }
 

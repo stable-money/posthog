@@ -4,6 +4,8 @@ import { logger } from '~/common/utils/logger'
 
 import { BatchBudget } from './batch-budget'
 import { createContext, createOkContext } from './helpers'
+import { batchBudgetCheckpointCounter } from './metrics'
+import { getBudgetCheckpoints } from './metrics.test-utils'
 import { isOkResult, isTimeoutResult, ok } from './results'
 import { StartPipeline } from './start-pipeline'
 import { StepPipeline } from './step-pipeline'
@@ -65,6 +67,10 @@ describe('StepPipeline', () => {
     describe('budget checkpoint', () => {
         const message: Message = { value: Buffer.from('test'), topic: 'test', partition: 0, offset: 1 } as Message
 
+        beforeEach(() => {
+            batchBudgetCheckpointCounter.reset()
+        })
+
         function buildChain(budget: BatchBudget, calls: string[]) {
             function firstStep(value: { value: number }) {
                 calls.push('firstStep')
@@ -96,6 +102,7 @@ describe('StepPipeline', () => {
             expect(isTimeoutResult(result.result)).toBe(true)
             expect((result.result as { reason: string }).reason).toBe('budget exceeded before secondStep')
             expect(result.context.lastStep).toBe('firstStep')
+            expect(await getBudgetCheckpoints('step', 'secondStep', 'enforced')).toBe(1)
         })
 
         it('changes nothing in shadow mode', async () => {
@@ -106,6 +113,9 @@ describe('StepPipeline', () => {
 
             expect(calls).toEqual(['firstStep', 'secondStep', 'thirdStep'])
             expect(isOkResult(result.result)).toBe(true)
+            // Shadow mode still records what enforcement would have cut off.
+            expect(await getBudgetCheckpoints('step', 'secondStep', 'shadow')).toBe(1)
+            expect(await getBudgetCheckpoints('step', 'thirdStep', 'shadow')).toBe(1)
         })
     })
 

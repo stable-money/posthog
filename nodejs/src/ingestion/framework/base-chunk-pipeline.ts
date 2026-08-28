@@ -2,7 +2,7 @@ import { instrumentFn } from '~/common/tracing/tracing-utils'
 import { logger } from '~/common/utils/logger'
 
 import { ChunkPipeline, ChunkPipelineResultWithContext, OkResultWithContext } from './chunk-pipeline.interface'
-import { pipelineStepDurationHistogram } from './metrics'
+import { pipelineStepDurationHistogram, recordBudgetCheckpoint } from './metrics'
 import { PipelineBuilderContext, PipelineResultWithContext } from './pipeline.interface'
 import { PipelineResult, PipelineResultOk, isOkResult, timeout } from './results'
 
@@ -52,10 +52,13 @@ export async function applyChunkStepToResults<TIn, TOut, C, RPrev extends string
             continue
         }
         const budget = item.context.budget
-        if (budget?.exhausted && budget.enforce) {
-            budgetCutOff ??= new Set<number>()
-            budgetCutOff.add(index)
-            continue
+        if (budget?.exhausted) {
+            recordBudgetCheckpoint('chunk', stepName, budget.enforce)
+            if (budget.enforce) {
+                budgetCutOff ??= new Set<number>()
+                budgetCutOff.add(index)
+                continue
+            }
         }
         successfulValues.push(item.result.value)
     }
