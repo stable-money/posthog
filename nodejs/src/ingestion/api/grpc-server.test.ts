@@ -589,6 +589,74 @@ describe('WorkerIngestServer', () => {
         expect(await outOfOrderCount()).toBe(before + 1)
     })
 
+    it('acks a parked sub-batch PARTIAL when its soft budget runs out before a slot frees', async () => {
+        // Nothing entered the pipeline, so there is no worker state to reconcile:
+        // every message goes back to the consumer for redelivery.
+        const budgeted = new WorkerIngestServer(
+            { port: 0, maxConcurrentBatches: 1, capacityRetryMs: 1, pumpIdleMs: 1, budgetEnforced: true },
+            { driver, feedOrderSentinel: sentinel, onFatal }
+        )
+        await budgeted.start()
+        try {
+            const source = new FrameSource()
+            const collected = collect(budgeted, source)
+
+            source.push(hello())
+            source.push(subBatch(1, [10]))
+            await until(() => driver.feeds.length === 1)
+            // The one slot is held by sub-batch 1, so sub-batch 2 parks.
+            source.push(subBatch(2, [11, 12], { softBudgetMs: 20n }))
+            await until(() => collected.acks.length === 1)
+
+            const ack = collected.acks[0]
+            expect(ack.seq).toBe(2n)
+            expect(ack.status).toBe(SubBatchStatus.PARTIAL)
+            expect(ack.accepted).toBe(0)
+            expect(ack.timedOut).toEqual([0, 1])
+            expect(ack.rejected).toEqual([])
+            expect(driver.feeds.map((feed) => feed.seq)).toEqual([1])
+
+            // The stream stays usable: the reader moved on to the next frame.
+            driver.complete({ streamId: driver.feeds[0].streamId, seq: 1, accepted: 1 })
+            source.end()
+            await collected.ended
+            expect(collected.error).toBeNull()
+        } finally {
+            await budgeted.stop()
+        }
+    })
+
+    it('feeds a parked sub-batch anyway when the budget is in shadow mode', async () => {
+        const shadow = new WorkerIngestServer(
+            { port: 0, maxConcurrentBatches: 1, capacityRetryMs: 1, pumpIdleMs: 1 },
+            { driver, feedOrderSentinel: sentinel, onFatal }
+        )
+        await shadow.start()
+        try {
+            const source = new FrameSource()
+            const collected = collect(shadow, source)
+
+            source.push(hello())
+            source.push(subBatch(1, [10]))
+            await until(() => driver.feeds.length === 1)
+            source.push(subBatch(2, [11], { softBudgetMs: 20n }))
+
+            // Free the slot after the deadline has passed; the sub-batch is fed
+            // regardless, and nothing but a counter records the expiry.
+            await new Promise((resolve) => setTimeout(resolve, 40))
+            driver.complete({ streamId: driver.feeds[0].streamId, seq: 1, accepted: 1 })
+            await until(() => driver.feeds.length === 2)
+            expect(collected.acks.every((ack) => ack.status !== SubBatchStatus.PARTIAL)).toBe(true)
+
+            driver.complete({ streamId: driver.feeds[1].streamId, seq: 2, accepted: 1 })
+            source.end()
+            await collected.ended
+            expect(collected.error).toBeNull()
+        } finally {
+            await shadow.stop()
+        }
+    })
+
     it('refuses a stream past the total concurrency ceiling with ResourceExhausted', async () => {
         // The ceiling bounds total open streams so a peer that ignores the
         // per-session SETTINGS limit cannot make the server accumulate streams
