@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -59,14 +59,32 @@ describe("DiskCache", () => {
     },
   );
 
-  it("drops an entry whose sidecar is unreadable", async () => {
+  it.each([
+    ["{not json", "unparseable"],
+    // Parses, but a missing storedAt makes the staleness arithmetic NaN, which
+    // reads as fresh — the entry would never expire and never refresh.
+    ['{"contentType":"image/png"}', "missing storedAt"],
+    ['{"storedAt":1000}', "missing contentType"],
+  ])("drops an entry whose sidecar is %s (%s)", async (sidecar) => {
     const images = makeCache().namespace("images");
     await images.set("key", PNG, "image/png");
     const hash = createHash("sha256").update("key").digest("hex");
-    await writeFile(join(rootDir, "images", `${hash}.json`), "{not json");
+    await writeFile(join(rootDir, "images", `${hash}.json`), sidecar);
 
     expect(await images.get("key", { maxAgeMs: 100 })).toBeNull();
     expect(await readdir(join(rootDir, "images"))).toEqual([]);
+  });
+
+  it("returns null when an unreadable entry cannot be deleted", async () => {
+    const images = makeCache().namespace("images");
+    const hash = createHash("sha256").update("key").digest("hex");
+    await mkdir(join(rootDir, "images"), { recursive: true });
+    await writeFile(join(rootDir, "images", `${hash}.json`), "{not json");
+    // A directory at the bytes path makes the cleanup rm reject, so deletion
+    // fails after the unreadable sidecar. get() must still resolve to null.
+    await mkdir(join(rootDir, "images", hash));
+
+    expect(await images.get("key", { maxAgeMs: 100 })).toBeNull();
   });
 
   it("keeps namespaces apart under one key", async () => {
