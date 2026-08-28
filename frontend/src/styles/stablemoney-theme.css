@@ -15,10 +15,13 @@
    ========================================================================== */
 
 :root {
-    /* The single knob. Swap for the Stable Money brand hex and the buttons,
-       links, focus rings and funnel bars all follow. */
-    --sm-accent: #2f57ff;
-    --sm-accent-hover: #1d3fd6;
+    /* Stable Money brand primary, taken verbatim from the app:
+       ColorName.primary / ColorName.primaryButton = #2C3441
+       ColorName.primaryButtonTap                  = #464B5F
+       (mobile/stable-flutter/apps/stable_money_flutter/lib/gen/colors.gen.dart)
+       Drives buttons, frames, focus rings and funnel bars. */
+    --sm-accent: #2c3441;
+    --sm-accent-hover: #464b5f;
 
     /* PostHog ships 0.375rem. Slightly softer reads as current without
        drifting into the pill-shaped look that dates quickly. */
@@ -59,12 +62,16 @@ body[theme='light'] {
     --primary-3000: var(--sm-accent);
     --primary-3000-hover: var(--sm-accent-hover);
     --primary-3000-light: var(--sm-accent);
-    --primary-alt-highlight: rgb(47 87 255 / 8%);
+    --primary-alt-highlight: rgb(44 52 65 / 8%);
     --primary-3000-frame-bg-light: var(--sm-accent);
     --primary-3000-button-bg: var(--sm-accent);
     --primary-3000-button-border: var(--sm-accent-hover);
     --primary-3000-button-border-hover: var(--sm-accent-hover);
 
+    /* Links carry the brand colour too, which is near-black — so they lean on
+       underline and hover rather than hue to read as links. If they turn out to
+       be hard to spot in prose, this is the one line to change; nothing else
+       depends on it. */
     --link: var(--sm-accent);
     --color-accent-3000: #eef1f6;
 }
@@ -88,18 +95,20 @@ body[theme='dark'] {
     --border-bold: rgb(233 237 244 / 26%);
     --glass-border-3000: rgb(233 237 244 / 10%);
 
-    /* Lifted for contrast against a near-black ground — the light-mode blue
-       fails WCAG AA here. */
-    --primary-3000: #6f8cff;
-    --primary-3000-hover: #8aa1ff;
-    --primary-3000-dark: #6f8cff;
-    --primary-alt-highlight: rgb(111 140 255 / 14%);
-    --primary-3000-frame-bg-light: #6f8cff;
-    --primary-3000-button-bg: #6f8cff;
-    --primary-3000-button-border: #5474ea;
-    --primary-3000-button-border-hover: #8aa1ff;
+    /* The app's own dark primary is #FFFFFF (ColorName.darkPrimary), which
+       cannot serve as a button fill here. So this is DERIVED, not brand-verbatim:
+       #2C3441 is hsl(217 19% 21%); held at that hue, saturation nudged to 30%
+       and lightness raised to 68% for AA contrast on a near-black ground. */
+    --primary-3000: #95a8c6;
+    --primary-3000-hover: #adbcd4;
+    --primary-3000-dark: #95a8c6;
+    --primary-alt-highlight: rgb(149 168 198 / 14%);
+    --primary-3000-frame-bg-light: #95a8c6;
+    --primary-3000-button-bg: #95a8c6;
+    --primary-3000-button-border: #7d90ae;
+    --primary-3000-button-border-hover: #adbcd4;
 
-    --link: #8aa1ff;
+    --link: #adbcd4;
     --color-accent-3000: #1b1f27;
 }
 
