@@ -24,6 +24,7 @@ import { dataNodeCollectionLogic } from '~/queries/nodes/DataNode/dataNodeCollec
 import { ProductKey } from '~/queries/schema/schema-general'
 
 import { sourcesDataLogic } from 'products/data_warehouse/frontend/shared/logics/sourcesDataLogic'
+import { marketingAnalyticsEmptyState } from 'products/marketing_analytics/frontend/emptyState/marketingAnalyticsEmptyState'
 import { useAttachedContext } from 'products/posthog_ai/frontend/api/logics'
 
 import { LegacyOAuthReconnectBanner } from '../web-analytics/tabs/marketing-analytics/frontend/components/LegacyOAuthReconnectBanner'
@@ -48,6 +49,7 @@ export const scene: SceneExport = {
     component: MarketingAnalyticsScene,
     logic: marketingAnalyticsLogic,
     productKey: ProductKey.MARKETING_ANALYTICS,
+    emptyState: marketingAnalyticsEmptyState,
 }
 
 const QueryTileItem = ({ tile }: { tile: QueryTile }): JSX.Element => {
