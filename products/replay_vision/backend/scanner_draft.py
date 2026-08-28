@@ -81,6 +81,10 @@ _MIN_SCREEN_FILTER_CHARS = 3
 # v2 filter pages become ONE multi-value visited_page property, which ORs its values, so several are
 # safe. More than this and the filter stops describing one flow.
 _MAX_FILTER_PAGES = 5
+# Routing container segments that wrap every authenticated page. A filter value made only of these
+# matches nearly everything, so it narrows nothing and must be rejected. The product-specific segment
+# a scanner cares about ("replay-vision", "insights") sits after them.
+_NON_NARROWING_SEGMENTS = frozenset({"project", "projects", "organization", "org", "home"})
 
 
 class DraftError(Exception):
@@ -724,13 +728,23 @@ def _page_filter_value(pathname: str) -> str | None:
     """The `icontains` filter value for a grounded page, or None when the page cannot filter.
 
     The grounding list collapses identifier segments to ":id", but real URLs contain the real IDs, so
-    a value holding ":id" matches nothing. The prefix up to the first ":id" still matches every such
-    URL — broader than the exact page, and under OR semantics broader only adds sessions.
+    a value holding ":id" matches nothing. Each run between the ":id" markers appears verbatim in the
+    real URL, so any one is a valid substring to match on. The longest run is the most distinctive:
+    for "/project/:id/replay-vision/scanners" it is "/replay-vision/scanners", not the "/project/"
+    prefix, which is the routing container in front of every page. Taking the prefix before the first
+    ":id" would keep only "/project/" and match nearly everything.
     """
-    value = pathname.split(":id")[0] if ":id" in pathname else pathname
-    if len(value.strip().replace("/", "")) < _MIN_SCREEN_FILTER_CHARS:
+    runs = pathname.split(":id") if ":id" in pathname else [pathname]
+    value = max(runs, key=len).strip()
+    stripped = value.replace("/", "")
+    if len(stripped) < _MIN_SCREEN_FILTER_CHARS:
         # `icontains` on "/" or a two-letter prefix matches nearly every URL: it would render as a
         # narrowing filter while narrowing nothing.
+        return None
+    # The longest run is only a routing container ("/project/"), so it still matches every page. This
+    # happens when the page has no distinctive segment of its own, e.g. the bare "/project/:id" home.
+    segments = [s for s in value.split("/") if s]
+    if segments and all(s in _NON_NARROWING_SEGMENTS for s in segments):
         return None
     return value
 

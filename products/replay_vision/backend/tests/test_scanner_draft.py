@@ -624,9 +624,9 @@ class TestV2Query:
     def test_no_pages_and_no_events_is_no_query(self):
         assert _v2_query([], []) is None
 
-    def test_collapsed_id_pages_filter_by_their_prefix(self):
+    def test_collapsed_id_pages_filter_by_their_static_run(self):
         # The grounding list says "/invoice/:id" but real URLs hold real IDs, so the literal value
-        # would match zero sessions. The prefix still matches every such URL.
+        # would match zero sessions. The static run "/invoice/" still matches every such URL.
         query = _v2_query(["/invoice/:id", "/billing"], [])
 
         assert query is not None
@@ -634,14 +634,30 @@ class TestV2Query:
 
     @pytest.mark.parametrize("pathname", ["/", "/:id", "/a/:id/b"])
     def test_a_page_that_cannot_narrow_is_dropped(self, pathname):
-        # "/a/:id/b" prefixes to "/a/", two non-slash chars: icontains on it matches nearly every
-        # URL, so it reads as a narrowing filter while narrowing nothing.
+        # The longest run of "/a/:id/b" is "/a/", one non-slash char: icontains on it matches nearly
+        # every URL, so it reads as a narrowing filter while narrowing nothing.
+        assert _v2_query([pathname], []) is None
+
+    def test_an_id_prefixed_route_filters_on_the_segment_after_the_id(self):
+        # PostHog's own pages are "/project/:id/<product>/...". The distinctive segment sits after
+        # the id, so the filter must be "/replay-vision/scanners", not the "/project/" container in
+        # front, which matches every authenticated page.
+        query = _v2_query(["/project/:id/replay-vision/scanners"], [])
+
+        assert query is not None
+        assert query["properties"][0]["value"] == ["/replay-vision/scanners"]
+
+    @pytest.mark.parametrize("pathname", ["/project/:id", "/organization/:id/", "/project/:id/home"])
+    def test_a_container_only_page_is_dropped(self, pathname):
+        # Nothing distinctive sits outside the routing container, so any icontains value would match
+        # every page. Better no filter than one that narrows nothing.
         assert _v2_query([pathname], []) is None
 
     def test_prefix_collisions_are_deduped(self):
         query = _v2_query(["/invoice/:id", "/invoice/:id/edit"], [])
 
         assert query is not None
+        # "/invoice/:id/edit" -> "/invoice/" (longest run), same as "/invoice/:id"; deduped to one.
         assert query["properties"][0]["value"] == ["/invoice/"]
 
 
