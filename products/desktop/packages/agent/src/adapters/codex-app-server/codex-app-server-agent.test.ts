@@ -2944,7 +2944,9 @@ describe("CodexAppServerAgent", () => {
     } as unknown as PromptRequest);
     await agent.cancel({ sessionId: "t" } as unknown as CancelNotification);
     await expect(first).resolves.toMatchObject({ stopReason: "cancelled" });
-    await expect(steer).resolves.toMatchObject({ _meta: { steer: false } });
+    await expect(steer).resolves.toMatchObject({
+      _meta: { steer: false, steerDeclineCause: "cancelled" },
+    });
 
     const interrupted = stub.requests
       .filter((r) => r.method === "turn/interrupt")
@@ -2982,7 +2984,9 @@ describe("CodexAppServerAgent", () => {
     } as unknown as PromptRequest);
 
     await expect(steerA).resolves.toMatchObject({ _meta: { steer: true } });
-    await expect(steerB).resolves.toMatchObject({ _meta: { steer: false } });
+    await expect(steerB).resolves.toMatchObject({
+      _meta: { steer: false, steerDeclineCause: "steer_in_flight" },
+    });
     expect(stub.requests.filter((r) => r.method === "turn/start")).toHaveLength(
       2,
     );
@@ -3131,7 +3135,9 @@ describe("CodexAppServerAgent", () => {
         prompt: [{ type: "text", text: "lost steer" }],
         _meta: { steer: true },
       } as unknown as PromptRequest),
-    ).resolves.toMatchObject({ _meta: { steer: false } });
+    ).resolves.toMatchObject({
+      _meta: { steer: false, steerDeclineCause: "continuation_failed" },
+    });
     expect(sessionUpdates).not.toContainEqual(
       expect.objectContaining({
         update: expect.objectContaining({
@@ -3234,7 +3240,9 @@ describe("CodexAppServerAgent", () => {
         prompt: [{ type: "text", text: "too late" }],
         _meta: { steer: true },
       } as unknown as PromptRequest),
-    ).resolves.toMatchObject({ _meta: { steer: false } });
+    ).resolves.toMatchObject({
+      _meta: { steer: false, steerDeclineCause: "no_in_flight_turn" },
+    });
     expect(
       stub.requests.filter((request) => request.method === "turn/start"),
     ).toHaveLength(0);

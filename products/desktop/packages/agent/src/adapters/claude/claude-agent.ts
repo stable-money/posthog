@@ -51,6 +51,7 @@ import {
   isMethod,
   POSTHOG_METHODS,
   POSTHOG_NOTIFICATIONS,
+  steerDeclined,
 } from "../../acp-extensions";
 import {
   createEnrichment,
@@ -605,7 +606,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       // Decline before pushing, so the message is redelivered rather than also
       // applied by a later turn.
       if (!owner) {
-        return { stopReason: "end_turn", _meta: { steer: false } };
+        return steerDeclined("no_owner_turn");
       }
       // Only a declined steer is redelivered, so acking on submission loses any
       // steer the SDK never folds in. Wait for the model to act on it instead.
@@ -613,7 +614,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         owner.pendingSteers.set(promptUuid, {
           consumed: false,
           settle: (reachedModel) =>
-            resolve({ stopReason: "end_turn", _meta: { steer: reachedModel } }),
+            resolve(
+              reachedModel
+                ? { stopReason: "end_turn", _meta: { steer: true } }
+                : steerDeclined("turn_ended_first"),
+            ),
         });
       });
       this.session.input.push(userMessage);
@@ -621,7 +626,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       return ack;
     }
     if (isSteer) {
-      return { stopReason: "end_turn", _meta: { steer: false } };
+      return steerDeclined(
+        this.session.compacting ? "compacting" : "no_in_flight_turn",
+      );
     }
 
     if (!hasInFlightTurns && !isLocalOnlyCommand) {

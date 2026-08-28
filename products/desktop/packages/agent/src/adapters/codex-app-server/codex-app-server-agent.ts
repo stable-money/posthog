@@ -33,6 +33,7 @@ import {
   type NativeGoalState,
   POSTHOG_METHODS,
   POSTHOG_NOTIFICATIONS,
+  steerDeclined,
 } from "../../acp-extensions";
 import {
   buildContextWikiInstructions,
@@ -185,10 +186,6 @@ function parseGoalCommand(prompt: PromptRequest["prompt"]): GoalCommand | null {
     default:
       return { kind: "set", objective: argument };
   }
-}
-
-function steerDeclined(): PromptResponse {
-  return { stopReason: "end_turn", _meta: { steer: false } };
 }
 
 function mergePromptResponses(
@@ -895,7 +892,9 @@ export class CodexAppServerAgent extends BaseAcpAgent {
       return { stopReason: "end_turn", _meta: { steer: true } };
     }
     if (isSteer) {
-      return steerDeclined();
+      return steerDeclined(
+        this.turns.isPending ? "turn_not_steerable" : "no_in_flight_turn",
+      );
     }
     if (this.turns.isPending) {
       // A turn is pending but has no turnId yet, so we can't steer; fail fast.
@@ -1059,7 +1058,7 @@ export class CodexAppServerAgent extends BaseAcpAgent {
     prompt: PromptRequest["prompt"],
   ): Promise<PromptResponse> {
     if (this.steering) {
-      return steerDeclined();
+      return steerDeclined("steer_in_flight");
     }
     this.steering = true;
     try {
@@ -1067,7 +1066,7 @@ export class CodexAppServerAgent extends BaseAcpAgent {
         ? undefined
         : this.turns.markInterrupted();
       if (!turnId) {
-        return steerDeclined();
+        return steerDeclined("cancelled");
       }
       await this.interruptTurn(turnId, "steer turn/interrupt failed");
       this.planProposal = undefined;
@@ -1083,7 +1082,7 @@ export class CodexAppServerAgent extends BaseAcpAgent {
         if (!this.turns.clearInterrupted(turnId)) {
           await this.finalizeTurn("cancelled");
         }
-        return steerDeclined();
+        return steerDeclined("continuation_failed");
       }
       this.usage.carryForNativeTurn();
       if (this.session.cancelled) {
@@ -1100,7 +1099,7 @@ export class CodexAppServerAgent extends BaseAcpAgent {
             "orphan continuation interrupt failed",
           );
         }
-        return steerDeclined();
+        return steerDeclined("cancelled");
       }
       this.broadcastUserInput(prompt);
       return { stopReason: "end_turn", _meta: { steer: true } };

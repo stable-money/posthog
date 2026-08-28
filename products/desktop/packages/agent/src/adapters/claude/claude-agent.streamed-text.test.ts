@@ -473,7 +473,7 @@ describe("ClaudeAcpAgent.prompt — streamed assistant text wiring", () => {
     await send(query, resultSuccess(sessionId));
 
     await expect(steerPromise).resolves.toMatchObject({
-      _meta: { steer: false },
+      _meta: { steer: false, steerDeclineCause: "turn_ended_first" },
     });
     await expect(promptPromise).resolves.toMatchObject({
       stopReason: "end_turn",
@@ -663,7 +663,9 @@ describe("ClaudeAcpAgent.prompt — streamed assistant text wiring", () => {
         prompt: [{ type: "text", text: "too late" }],
         _meta: { steer: true },
       }),
-    ).resolves.toMatchObject({ _meta: { steer: false } });
+    ).resolves.toMatchObject({
+      _meta: { steer: false, steerDeclineCause: "no_in_flight_turn" },
+    });
 
     const session = (agent as unknown as { session: { turnQueue: unknown[] } })
       .session;
