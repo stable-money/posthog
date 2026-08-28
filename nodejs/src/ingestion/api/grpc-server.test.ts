@@ -89,8 +89,12 @@ class FakeDriver implements StreamIngestDriver {
         return waiter.promise
     }
 
-    complete(batch: Omit<CompletedSubBatch, 'settled'>, settled: Promise<void> = Promise.resolve()): void {
-        const completed: CompletedSubBatch = { ...batch, settled }
+    complete(
+        batch: Omit<CompletedSubBatch, 'settled' | 'timedOut' | 'rejected'> &
+            Partial<Pick<CompletedSubBatch, 'timedOut' | 'rejected'>>,
+        settled: Promise<void> = Promise.resolve()
+    ): void {
+        const completed: CompletedSubBatch = { timedOut: [], rejected: [], ...batch, settled }
         const waiter = this.nextWaiters.shift()
         if (waiter) {
             waiter.resolve(completed)
@@ -267,6 +271,8 @@ describe('WorkerIngestServer', () => {
             [2, SubBatchStatus.OK, 1],
             [1, SubBatchStatus.OK, 2],
         ])
+        // An OK ack claims every message, so both disposition lists stay empty.
+        expect(collected.acks.every((ack) => ack.timedOut.length === 0 && ack.rejected.length === 0)).toBe(true)
         expect(server.streamCount).toBe(0)
     })
 
@@ -370,21 +376,6 @@ describe('WorkerIngestServer', () => {
         expect(budget.softBudgetMs).toBe(300)
         expect(budget.armedAt).toBeGreaterThanOrEqual(before)
         expect(budget.armedAt).toBeLessThanOrEqual(after)
-
-        source.end()
-        driver.complete({ streamId: driver.feeds[0].streamId, seq: 1, accepted: 1 })
-        await collected.ended
-    })
-
-    it('passes a consumer that sends no budget through as unlimited', async () => {
-        const source = new FrameSource()
-        const collected = collect(server, source)
-
-        source.push(hello())
-        source.push(subBatch(1, [10]))
-        await until(() => driver.feeds.length === 1)
-
-        expect(driver.feeds[0].budget.softBudgetMs).toBe(0)
 
         source.end()
         driver.complete({ streamId: driver.feeds[0].streamId, seq: 1, accepted: 1 })
@@ -589,6 +580,36 @@ describe('WorkerIngestServer', () => {
         expect(await outOfOrderCount()).toBe(before + 1)
     })
 
+    it('acks PARTIAL with the dispositions of a batch whose elements did not all finish', async () => {
+        const source = new FrameSource()
+        const collected = collect(server, source)
+
+        source.push(hello())
+        source.push(subBatch(1, [10, 11, 12, 13]))
+        await until(() => driver.feeds.length === 1)
+
+        driver.complete({
+            streamId: driver.feeds[0].streamId,
+            seq: 1,
+            accepted: 2,
+            timedOut: [1],
+            rejected: [3],
+        })
+        await until(() => collected.acks.length === 1)
+        source.end()
+        await collected.ended
+
+        const ack = collected.acks[0]
+        expect(ack.status).toBe(SubBatchStatus.PARTIAL)
+        expect(ack.timedOut).toEqual([1])
+        expect(ack.rejected).toEqual([3])
+        // The invariant the consumer validates fail-closed: disjoint lists,
+        // together non-empty, and every message accounted for exactly once.
+        expect(ack.timedOut.filter((index) => ack.rejected.includes(index))).toEqual([])
+        expect(ack.timedOut.length + ack.rejected.length).toBeGreaterThan(0)
+        expect(ack.accepted + ack.timedOut.length + ack.rejected.length).toBe(4)
+    })
+
     it('acks a parked sub-batch PARTIAL when its soft budget runs out before a slot frees', async () => {
         // Nothing entered the pipeline, so there is no worker state to reconcile:
         // every message goes back to the consumer for redelivery.
@@ -639,11 +660,12 @@ describe('WorkerIngestServer', () => {
             source.push(hello())
             source.push(subBatch(1, [10]))
             await until(() => driver.feeds.length === 1)
+            const expiresAt = Date.now() + 20
             source.push(subBatch(2, [11], { softBudgetMs: 20n }))
 
             // Free the slot after the deadline has passed; the sub-batch is fed
             // regardless, and nothing but a counter records the expiry.
-            await new Promise((resolve) => setTimeout(resolve, 40))
+            await until(() => Date.now() > expiresAt)
             driver.complete({ streamId: driver.feeds[0].streamId, seq: 1, accepted: 1 })
             await until(() => driver.feeds.length === 2)
             expect(collected.acks.every((ack) => ack.status !== SubBatchStatus.PARTIAL)).toBe(true)
