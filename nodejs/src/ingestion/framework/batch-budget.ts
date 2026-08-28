@@ -1,17 +1,18 @@
 /**
  * The time allowance one fed batch has, minted by the pipeline from its
  * constructor factory. It carries one soft deadline, absolute epoch
- * milliseconds, and it is the one steps see: when it passes the framework
- * stops starting work, elements the budget cut off complete as `TIMEOUT`, and
- * in-flight steps are allowed to finish. Nothing here bounds a step that never
- * returns — the consumer's ack watchdog is the hard limit.
+ * milliseconds, and it is the one the framework checkpoints read: when it
+ * passes the framework stops starting work, elements the budget cut off
+ * complete as `TIMEOUT`, and in-flight steps are allowed to finish. Nothing
+ * here bounds a step that never returns — the consumer's ack watchdog is the
+ * hard limit.
  *
  * `unlimited()` is the neutral element, so there is no "no budget" state to
  * branch on: its signal never fires on its own and its `remainingMs` is
  * `Infinity`, which makes every checkpoint a no-op.
  */
 export class BatchBudget {
-    /** Fires at the soft deadline or on `abort()`. The only deadline steps ever see. */
+    /** Fires at the soft deadline or on `abort()`. */
     readonly signal: AbortSignal
 
     private readonly controller = new AbortController()

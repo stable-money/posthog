@@ -2,8 +2,9 @@ import { Message } from 'node-rdkafka'
 
 import { logger } from '~/common/utils/logger'
 
+import { BatchBudget } from './batch-budget'
 import { createContext, createOkContext } from './helpers'
-import { isOkResult, ok } from './results'
+import { isOkResult, isTimeoutResult, ok } from './results'
 import { StartPipeline } from './start-pipeline'
 import { StepPipeline } from './step-pipeline'
 
@@ -58,6 +59,53 @@ describe('StepPipeline', () => {
                     debugContext: { topic: 'test', partition: 0, offset: 1 },
                 })
             )
+        })
+    })
+
+    describe('budget checkpoint', () => {
+        const message: Message = { value: Buffer.from('test'), topic: 'test', partition: 0, offset: 1 } as Message
+
+        function buildChain(budget: BatchBudget, calls: string[]) {
+            function firstStep(value: { value: number }) {
+                calls.push('firstStep')
+                // Stands in for the step taking longer than the batch had left.
+                budget.abort('soft deadline')
+                return Promise.resolve(ok(value))
+            }
+            function secondStep(value: { value: number }) {
+                calls.push('secondStep')
+                return Promise.resolve(ok(value))
+            }
+            function thirdStep(value: { value: number }) {
+                calls.push('thirdStep')
+                return Promise.resolve(ok(value))
+            }
+
+            return new StepPipeline(firstStep, new StartPipeline<{ value: number }, unknown>())
+                .pipe(secondStep)
+                .pipe(thirdStep)
+        }
+
+        it('times the element out at the next step and skips the rest of the chain', async () => {
+            const budget = BatchBudget.softDeadline(Date.now() + 1000)
+            const calls: string[] = []
+
+            const result = await buildChain(budget, calls).process(createOkContext({ value: 1 }, { message, budget }))
+
+            expect(calls).toEqual(['firstStep'])
+            expect(isTimeoutResult(result.result)).toBe(true)
+            expect((result.result as { reason: string }).reason).toBe('budget exceeded before secondStep')
+            expect(result.context.lastStep).toBe('firstStep')
+        })
+
+        it('changes nothing in shadow mode', async () => {
+            const budget = BatchBudget.softDeadline(Date.now() + 1000, { enforce: false })
+            const calls: string[] = []
+
+            const result = await buildChain(budget, calls).process(createOkContext({ value: 1 }, { message, budget }))
+
+            expect(calls).toEqual(['firstStep', 'secondStep', 'thirdStep'])
+            expect(isOkResult(result.result)).toBe(true)
         })
     })
 
