@@ -2768,6 +2768,11 @@ class FunnelVizType(StrEnum):
     FLOW = "flow"
 
 
+class FunnelWindowBoundary(StrEnum):
+    CLIP = "clip"
+    EXTEND = "extend"
+
+
 class LegendPosition(StrEnum):
     TOP = "top"
     BOTTOM = "bottom"

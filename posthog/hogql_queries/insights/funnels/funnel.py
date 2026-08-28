@@ -2,7 +2,7 @@ from typing import Optional, Protocol, cast, runtime_checkable
 
 from rest_framework.exceptions import ValidationError
 
-from posthog.schema import BreakdownAttributionType, BreakdownType, StepOrderValue
+from posthog.schema import BreakdownAttributionType, BreakdownType, FunnelWindowBoundary, StepOrderValue
 
 from posthog.hogql import ast
 from posthog.hogql.constants import DEFAULT_RETURNED_ROWS, HogQLQuerySettings
@@ -175,7 +175,7 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
         placeholders: dict[str, ast.Expr] = {"inner_event_query": inner_event_query}
         entry_guard = ""
         if (
-            self.context.funnelWindowBoundary == "extend"
+            self.context.funnelWindowBoundary == FunnelWindowBoundary.EXTEND
             and self.context.funnelsFilter.funnelOrderType == StepOrderValue.UNORDERED
         ):
             entry_guard = " AND min(timestamp) <= {entry_cutoff}"

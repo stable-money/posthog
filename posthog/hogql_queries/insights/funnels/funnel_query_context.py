@@ -1,10 +1,11 @@
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
 from posthog.schema import (
     BreakdownAttributionType,
     BreakdownFilter,
     BreakdownType,
     FunnelConversionWindowTimeUnit,
+    FunnelWindowBoundary,
     FunnelsActorsQuery,
     FunnelsFilter,
     FunnelsQuery,
@@ -21,9 +22,6 @@ from posthog.models.property.util import box_value
 from posthog.models.team.team import Team
 from posthog.models.user import User
 from posthog.utils import DATERANGE_MAP
-
-
-FunnelWindowBoundary = Literal["clip", "extend"]
 
 
 class FunnelQueryContext(QueryContext):
@@ -139,7 +137,7 @@ class FunnelQueryContext(QueryContext):
     @property
     def funnelWindowBoundary(self) -> FunnelWindowBoundary:
         """Whether the conversion window may run past date_to. See FunnelsFilter.funnelWindowBoundary."""
-        return self.funnelsFilter.funnelWindowBoundary or "clip"
+        return self.funnelsFilter.funnelWindowBoundary or FunnelWindowBoundary.CLIP
 
     @property
     def max_steps(self) -> int:

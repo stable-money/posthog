@@ -13,6 +13,7 @@ from posthog.schema import (
     FunnelExclusionEventsNode,
     FunnelMathType,
     FunnelsDataWarehouseNode,
+    FunnelWindowBoundary,
     GroupNode,
     StepOrderValue,
 )
@@ -640,7 +641,7 @@ class FunnelEventQuery(DataWarehouseSchemaMixin):
         since the window is anchored on a first step that is itself at or before date_to.
         """
         date_to: ast.Expr = ast.Constant(value=self._date_range().date_to())
-        if self.context.funnelWindowBoundary == "extend":
+        if self.context.funnelWindowBoundary == FunnelWindowBoundary.EXTEND:
             date_to = ast.ArithmeticOperation(
                 left=date_to,
                 right=ast.Call(
@@ -658,7 +659,7 @@ class FunnelEventQuery(DataWarehouseSchemaMixin):
         Unordered funnels have no designated first step, so they are excluded here and clamped on
         their earliest matching event in FunnelUDF._inner_aggregation_query instead.
         """
-        if self.context.funnelWindowBoundary != "extend":
+        if self.context.funnelWindowBoundary != FunnelWindowBoundary.EXTEND:
             return None
         if self.context.funnelsFilter.funnelOrderType == StepOrderValue.UNORDERED:
             return None
