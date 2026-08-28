@@ -64,16 +64,14 @@ let counter = 0
 const SHORTCUT_DISMISSAL_LOCAL_STORAGE_KEY = 'shortcut-dismissal'
 const SEEN_CUSTOM_PRODUCTS_LOCAL_STORAGE_KEY = 'seen-custom-products'
 
-const USER_PRODUCT_LIST_REASON_DEFAULTS: { [key in UserProductListReason]?: string } = {
-    [UserProductListReason.USED_BY_COLLEAGUES]:
-        'We think you might like this product because your colleagues are using it.',
-    [UserProductListReason.USED_SIMILAR_PRODUCTS]:
-        'We think you might like this product because you use similar products. Give it a try!',
-    [UserProductListReason.USED_ON_SEPARATE_TEAM]:
-        'You use this product on another project so we think you might like it here.',
-    [UserProductListReason.NEW_PRODUCT]: 'This is a brand new product. Give it a try!',
-    [UserProductListReason.SALES_LED]: 'This product is recommended for you by our team.',
-}
+// The reasons that mean we put the product in the sidebar, rather than the person choosing it.
+const RECOMMENDED_PRODUCT_REASONS = new Set<UserProductListReason>([
+    UserProductListReason.USED_BY_COLLEAGUES,
+    UserProductListReason.USED_SIMILAR_PRODUCTS,
+    UserProductListReason.USED_ON_SEPARATE_TEAM,
+    UserProductListReason.NEW_PRODUCT,
+    UserProductListReason.SALES_LED,
+])
 
 // Show active state for items that are active in the URL
 const isItemActive = (item: TreeDataItem): boolean => {
@@ -477,6 +475,7 @@ export function ProjectTree({
                     root === 'custom-products://'
                 ) {
                     const key = item.record?.sceneKey
+                    const reason = item.record?.reason as UserProductListReason | undefined
 
                     return (
                         <>
@@ -484,6 +483,13 @@ export function ProjectTree({
                                 <>
                                     <p className="mb-1 font-semibold">{item.displayName}</p>
                                 </>
+                            )}
+                            {reason && RECOMMENDED_PRODUCT_REASONS.has(reason) && (
+                                <p className="mb-1">
+                                    <LemonTag type="success" size="small">
+                                        Recommended
+                                    </LemonTag>
+                                </p>
                             )}
                             {sceneConfigurations[key]?.description || item.name}
 
@@ -552,13 +558,10 @@ export function ProjectTree({
             renderItemIcon={(item) => {
                 const createdAt = item.record?.created_at
                 const reason = item.record?.reason as UserProductListReason | undefined
-                const reasonText = item.record?.reason_text as string | null | undefined
                 const itemId = item.id
 
                 // This indicator is shown if we detect we're looking at a custom product
                 // that's been recently added to the user's sidebar.
-                // We extract the `reasonText` from the item or come up with some default
-                // ones for some specific reasons that have a reasonable default.
                 // We exclude USED_ON_SEPARATE_TEAM as those are not particularly useful to highlight.
                 // We also hide the indicator once the user has hovered over the item.
                 const showIndicator =
@@ -567,7 +570,7 @@ export function ProjectTree({
                     dayjs().diff(dayjs(createdAt), 'days') < 7 &&
                     reason &&
                     reason !== UserProductListReason.USED_ON_SEPARATE_TEAM &&
-                    (reasonText || USER_PRODUCT_LIST_REASON_DEFAULTS[reason]) &&
+                    RECOMMENDED_PRODUCT_REASONS.has(reason) &&
                     !seenCustomProducts.includes(itemId)
 
                 return (
