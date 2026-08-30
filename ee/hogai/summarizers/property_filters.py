@@ -66,6 +66,8 @@ PROPERTY_FILTER_VERBOSE_NAME: dict[PropertyOperator, str] = {
     PropertyOperator.IS_DATE_EXACT: "is on exact date",
     PropertyOperator.IS_DATE_BEFORE: "is before date",
     PropertyOperator.IS_DATE_AFTER: "is after date",
+    PropertyOperator.IS_DATE_BETWEEN: "is between dates",
+    PropertyOperator.IS_DATE_NOT_BETWEEN: "is not between dates",
     PropertyOperator.BETWEEN: "is between",
     PropertyOperator.NOT_BETWEEN: "is not between",
     PropertyOperator.MIN: "is a minimum value",
