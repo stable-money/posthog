@@ -29,10 +29,17 @@
     --radius-sm: 0.3125rem;
     --radius-lg: 0.75rem;
 
-    /* Titles carry the personality; body text stays on the system stack for
-       legibility at 12–13px, where display faces fall apart. */
+    /* Upstream's heading stack leads with RoundHog — PostHog's own display face,
+       really loaded (fonts.scss:43, weight 800), so this is a real substitution
+       and not a no-op: headings move to the system UI face. RoundHog reads as
+       PostHog branding, which is wrong for an install that is ours.
+
+       This is upstream's --font-title verbatim with 'RoundHog' removed — the
+       emoji entries at both ends are load-bearing and must stay. */
     --font-title:
-        'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        'Emoji Flags Polyfill', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto',
+        'Helvetica Neue', helvetica, arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol';
 }
 
 /* --------------------------------------------------------------------------
@@ -59,14 +66,12 @@ body[theme='light'] {
     --border-bold: rgb(11 13 18 / 24%);
     --glass-border-3000: rgb(11 13 18 / 8%);
 
+    /* Accent colour for active nav, selected rows, focus and highlights. The
+       primary BUTTON is deliberately left alone — see the note at the bottom. */
     --primary-3000: var(--sm-accent);
     --primary-3000-hover: var(--sm-accent-hover);
     --primary-3000-light: var(--sm-accent);
     --primary-alt-highlight: rgb(44 52 65 / 8%);
-    --primary-3000-frame-bg-light: var(--sm-accent);
-    --primary-3000-button-bg: var(--sm-accent);
-    --primary-3000-button-border: var(--sm-accent-hover);
-    --primary-3000-button-border-hover: var(--sm-accent-hover);
 
     /* Links carry the brand colour too, which is near-black — so they lean on
        underline and hover rather than hue to read as links. If they turn out to
@@ -74,6 +79,30 @@ body[theme='light'] {
        depends on it. */
     --link: var(--sm-accent);
     --color-accent-3000: #eef1f6;
+
+    /* Series colours. Upstream's slot 1 is #1d4aff — the single most dated thing
+       on a funnel screen — and slots 2-15 are an unordered grab bag rather than a
+       palette. These eight are a validated categorical set: every adjacent pair
+       clears the colour-blind separation gate (worst 9.1 protan) and the
+       normal-vision floor (worst 19.6) on a #ffffff card.
+
+       Three of them sit under 3:1 against white (#1baf7a 2.82, #eda100 2.17,
+       #e87ba4 2.69). That is allowed only because PostHog always ships the
+       relief: funnel steps carry direct labels and every insight has a
+       "Detailed results" table, so colour is never the only channel.
+
+       Slots 9-15 are deliberately left upstream: PostHog only reaches them past
+       eight series, and a ninth series should be folded into "Other" rather than
+       given a ninth hue. */
+    --data-color-1: #2a78d6;
+    --data-color-1-hover: #256abf;
+    --data-color-2: #eb6834;
+    --data-color-3: #1baf7a;
+    --data-color-4: #eda100;
+    --data-color-5: #e87ba4;
+    --data-color-6: #008300;
+    --data-color-7: #4a3aa7;
+    --data-color-8: #e34948;
 }
 
 /* --------------------------------------------------------------------------
@@ -95,21 +124,31 @@ body[theme='dark'] {
     --border-bold: rgb(233 237 244 / 26%);
     --glass-border-3000: rgb(233 237 244 / 10%);
 
-    /* The app's own dark primary is #FFFFFF (ColorName.darkPrimary), which
-       cannot serve as a button fill here. So this is DERIVED, not brand-verbatim:
-       #2C3441 is hsl(217 19% 21%); held at that hue, saturation nudged to 30%
-       and lightness raised to 68% for AA contrast on a near-black ground. */
+    /* The app's own dark primary is #FFFFFF (ColorName.darkPrimary), which is
+       unusable as an accent on a near-black ground. So this is DERIVED, not
+       brand-verbatim: #2C3441 is hsl(217 19% 21%); held at that hue, saturation
+       nudged to 30% and lightness raised to 68% for AA contrast.
+       As in light, the primary BUTTON is left to upstream. */
     --primary-3000: #95a8c6;
     --primary-3000-hover: #adbcd4;
     --primary-3000-dark: #95a8c6;
     --primary-alt-highlight: rgb(149 168 198 / 14%);
-    --primary-3000-frame-bg-light: #95a8c6;
-    --primary-3000-button-bg: #95a8c6;
-    --primary-3000-button-border: #7d90ae;
-    --primary-3000-button-border-hover: #adbcd4;
 
     --link: #adbcd4;
     --color-accent-3000: #1b1f27;
+
+    /* The same eight hues, re-stepped for a #16191f card — not an automatic
+       flip of the light values. Validated as its own set: worst adjacent CVD
+       ΔE 8.4, normal-vision 19.3, and unlike light, all eight clear 3:1. */
+    --data-color-1: #3987e5;
+    --data-color-1-hover: #2a78d6;
+    --data-color-2: #d95926;
+    --data-color-3: #199e70;
+    --data-color-4: #c98500;
+    --data-color-5: #d55181;
+    --data-color-6: #008300;
+    --data-color-7: #9085e9;
+    --data-color-8: #e66767;
 }
 
 /* ==========================================================================
@@ -144,3 +183,11 @@ body[theme='dark'] {
     --spacing: 0.22rem;
 }
 */
+
+/* Figures in a table are meant to be compared down the column, which needs the
+   digits to share a width. LemonTable is hand-authored (LemonTable.scss:11), so
+   the class is as stable as .StepBarLabels__label above. Applied to cells only —
+   headers are words, and tabular figures in prose look mechanical. */
+.LemonTable td {
+    font-variant-numeric: tabular-nums;
+}
