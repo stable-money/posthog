@@ -28,6 +28,7 @@ import { formatDate } from 'lib/utils/datetime'
 import {
     isOperatorBetween,
     isOperatorDate,
+    isOperatorDateBetween,
     isOperatorFlag,
     isOperatorMulti,
     isOperatorRegex,
@@ -104,6 +105,7 @@ export function PropertyValue({
     const isMultiSelect = forceSingleSelect ? false : operator && isOperatorMulti(operator)
     const isDateTimeProperty = operator && isOperatorDate(operator)
     const isBetweenProperty = operator && isOperatorBetween(operator)
+    const isDateRangeProperty = operator && isOperatorDateBetween(operator)
     const propertyDefinitionType = propertyFilterTypeToPropertyDefinitionType(type)
     const { isRefreshing } = useValues(propertyValueLogic({ propertyKey, type: propertyDefinitionType }))
 
@@ -177,6 +179,9 @@ export function PropertyValue({
     )
 
     const setValue = (newValue: PropertyValueProps['value']): void => onSet(newValue)
+
+    // Half-filled [from, to] for the date-range operators, held here until both ends are picked.
+    const [pendingDateRange, setPendingDateRange] = useState<[string | null, string | null] | null>(null)
 
     // preload values if preloadValues prop is set
     useEffect(() => {
@@ -384,6 +389,48 @@ export function PropertyValue({
 
     if (isBetweenProperty) {
         return <PropertyFilterBetween value={value ?? null} onSet={setValue} size={size} />
+    }
+
+    if (isDateRangeProperty) {
+        // Two date pickers rather than a third component: PropertyFilterBetween is numeric-only
+        // (it coerces both sides with `Number()`), so it can't host a [from, to] date pair.
+        //
+        // The half-filled pair is held locally and NOT pushed up, for two reasons:
+        //  - an unpicked bound would have to serialise as something, and '' reaches ClickHouse as
+        //    toDateTime(''), which is a hard query error rather than an ignored bound;
+        //  - TaxonomicPropertyFilter closes the popover as soon as a truthy value arrives for a
+        //    non-multi operator, so committing on the first pick shuts the second picker before
+        //    it can be reached.
+        // Committing only once both ends exist fixes both, and lets the popover close at the
+        // right moment -- when the range is actually complete.
+        const committed = Array.isArray(value) ? value : [null, null]
+        const [rangeFrom, rangeTo] = pendingDateRange ?? [
+            (committed[0] ?? null) as string | null,
+            (committed[1] ?? null) as string | null,
+        ]
+        const setBound = (from: string | null, to: string | null): void => {
+            setPendingDateRange([from, to])
+            if (from && to) {
+                setValue([from, to])
+            }
+        }
+        return (
+            <div className="flex items-center gap-2">
+                <PropertyFilterDatePicker
+                    autoFocus={autoFocus}
+                    operator={operator}
+                    value={rangeFrom}
+                    setValue={(newFrom) => setBound((newFrom as string) || null, rangeTo)}
+                />
+                <span className="font-medium">and</span>
+                <PropertyFilterDatePicker
+                    autoFocus={false}
+                    operator={operator}
+                    value={rangeTo}
+                    setValue={(newTo) => setBound(rangeFrom, (newTo as string) || null)}
+                />
+            </div>
+        )
     }
 
     if (isDateTimeProperty) {

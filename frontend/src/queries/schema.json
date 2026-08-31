@@ -39792,6 +39792,8 @@
                 "is_date_exact",
                 "is_date_before",
                 "is_date_after",
+                "is_date_between",
+                "is_date_not_between",
                 "between",
                 "not_between",
                 "min",
