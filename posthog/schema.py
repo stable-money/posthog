@@ -28075,6 +28075,20 @@ class FunnelsFilter(BaseModel):
     ) = []
     funnelAggregateByHogQL: str | None = None
     funnelFromStep: int | None = None
+    funnelHoldConstantBreakdown: bool | None = Field(
+        default=False,
+        description=(
+            "Hold the breakdown property constant across every step, instead of splitting the funnel"
+            " by it. A person only converts if one single value of the breakdown property carries them"
+            ' through the whole funnel — "viewed product X then bought product X", never "viewed X then'
+            ' bought Y". The result is one funnel, not one per value, and a person is counted once even'
+            ' if several values would have carried them through. Mixpanel calls this "hold property'
+            ' constant".\n\nRequires a single-property event/person/session breakdown; cohort and'
+            " multi-property breakdowns are rejected. Forces `breakdownAttributionType` to"
+            " `all_events`, and events missing the property are excluded rather than grouped under an"
+            " empty value."
+        ),
+    )
     funnelOrderType: StepOrderValue | None = StepOrderValue.ORDERED
     funnelStepReference: FunnelStepReference | None = FunnelStepReference.TOTAL
     funnelToStep: int | None = Field(

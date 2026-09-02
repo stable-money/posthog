@@ -43,6 +43,7 @@ from posthog.hogql_queries.insights.funnels.funnel_time_to_convert_bins import (
 from posthog.hogql_queries.insights.funnels.funnel_validation_rules import (
     RequireAtLeastTwoFunnelSteps,
     ValidateFunnelExclusions,
+    ValidateFunnelHoldConstantBreakdown,
     ValidateFunnelStepRange,
     ValidateMaxFunnelSteps,
     ValidateOptionalFunnelSteps,
@@ -106,6 +107,7 @@ class FunnelsQueryRunner(AnalyticsQueryRunner[FunnelsQueryResponse]):
             ValidateMaxFunnelSteps(),
             ValidateFunnelStepRange(),
             ValidateFunnelExclusions(),
+            ValidateFunnelHoldConstantBreakdown(),
             ValidateOptionalFunnelSteps(),
             DisallowUnsupportedDataWarehouseSettings(),
         )
