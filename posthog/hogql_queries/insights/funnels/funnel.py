@@ -55,22 +55,36 @@ class FunnelUDFMixin:
             # which here would read as "converted while the property stayed the same" for people
             # who never had it at all.
             #
-            # This is always the array shape even for one property, because FunnelQueryContext
-            # boxes a lone breakdown string into a list; the empty test therefore has to look at
-            # the elements. Upstream's notEmpty() below tests the array itself, which is never
-            # empty (it is an arrayMap over a fixed breakdown list), so it would let [''] through.
             # get_breakdown_expr wraps every field in ifNull(..., ''), so '' is the only
             # missing-marker available -- a genuinely empty value is dropped along with it.
-            return (
-                f"groupUniqArrayIf(arrayMap(x -> ifNull(x, ''), {prop}), "
-                f"notEmpty({prop}) and arrayAll(x -> notEmpty(ifNull(x, '')), {prop}))"
-            )
+            #
+            # The shape split below is not cosmetic. For event/person/session/hogql breakdowns
+            # FunnelQueryContext.breakdown boxes even a lone breakdown string into a list, so prop
+            # is an Array and emptiness has to be tested per element -- upstream's plain notEmpty()
+            # tests the array itself, which is never empty (it is an arrayMap over a fixed
+            # breakdown list) and so would let [''] through. A group breakdown's type is absent
+            # from that boxing list, so prop stays a plain String and the array functions would be
+            # a ClickHouse type error.
+            if self._query_has_array_breakdown():
+                return (
+                    f"groupUniqArrayIf(arrayMap(x -> ifNull(x, ''), {prop}), "
+                    f"notEmpty({prop}) and arrayAll(x -> notEmpty(ifNull(x, '')), {prop}))"
+                )
+            # A group breakdown is NOT boxed into a list by FunnelQueryContext.breakdown (its
+            # breakdown_type is absent from that method's list), so prop is a plain String here and
+            # the array functions above would be a type error in ClickHouse.
+            return f"groupUniqArrayIf({prop}, notEmpty({prop}))"
         if self._query_has_array_breakdown():
             return f"groupUniqArrayIf(arrayMap(x -> ifNull(x, ''), {prop}), notEmpty({prop}))"
         return f"groupUniqArray(ifNull({prop}, ''))"
 
     def _default_breakdown_selector(self: FunnelProtocol) -> str:
         return "[]" if self._query_has_array_breakdown() else "''"
+
+
+# Ordering key for picking which of a person's property values represents them once a
+# held-constant breakdown is collapsed: furthest step first, then fastest overall.
+_HOLD_CONSTANT_PICK = "tuple(step_reached, -arraySum(timings))"
 
 
 class FunnelUDF(FunnelUDFMixin, FunnelBase):
@@ -253,7 +267,12 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
             "aggregation_target",
             "groupBitOr(steps_bitfield) as hc_steps_bitfield",
             "max(step_reached) as hc_step_reached",
-            "argMax(timings, step_reached) as hc_timings",
+            # Ties on step_reached are ordinary (two values can each carry someone to the same
+            # step), and argMax on a tie returns an unspecified row -- which would make the
+            # displayed conversion times depend on ClickHouse's choice. Order by furthest step,
+            # then fastest total time, so the pick is deterministic and defensible. Every argMax
+            # here uses this same key so they all describe the same value.
+            f"argMax(timings, {_HOLD_CONSTANT_PICK}) as hc_timings",
             "any(prop) as hc_prop",
         ]
         outer_fields = [
@@ -267,7 +286,9 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
         ]
 
         if self._include_matched_events() or self.context.includePrecedingTimestamp or self.context.includeTimestamp:
-            inner_aggregates.append("argMax(matched_events_array, step_reached) as hc_matched_events_array")
+            inner_aggregates.append(
+                f"argMax(matched_events_array, {_HOLD_CONSTANT_PICK}) as hc_matched_events_array"
+            )
             outer_fields.append("hc_matched_events_array as matched_events_array")
 
         if self._is_session_aggregation():

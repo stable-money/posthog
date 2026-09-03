@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 from rest_framework import status
 
@@ -205,3 +206,61 @@ class TestRoleMembershipAPI(APIBaseTest):
         response = self.client.patch(f"{self.memberships_url}{membership.id}/", {"user_uuid": str(uuid.uuid4())})
 
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+
+class TestRoleMembershipVisibilityFiltering(APIBaseTest):
+    """RoleMembershipViewSet.safely_get_queryset is the only thing that hides members from a
+    restricted requester on the list endpoint, and nothing else covered it.
+
+    The facade it calls short-circuits to "everyone is visible" unless the org holds the
+    ACCESS_CONTROL entitlement, so an unlicensed test org can never reach the filtering branch.
+    Patching the facade is deliberate: the unit under test here is the viewset's filtering, not the
+    facade's own resolution rules, which have their own tests.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.organization_membership.level = OrganizationMembership.Level.ADMIN
+        self.organization_membership.save()
+        self.role = Role.objects.create(organization=self.organization, name="Analyst")
+        self.memberships_url = f"/api/organizations/{self.organization.id}/roles/{self.role.id}/role_memberships/"
+
+        self.visible_user = User.objects.create_and_join(self.organization, "visible@posthog.com", None)
+        self.hidden_user = User.objects.create_and_join(self.organization, "hidden@posthog.com", None)
+        for user in (self.visible_user, self.hidden_user):
+            RoleMembership.objects.create(
+                role=self.role, user=user, organization_member=user.organization_memberships.get()
+            )
+
+    def _emails(self, response):
+        return sorted(row["user"]["email"] for row in response.json()["results"])
+
+    def test_unrestricted_requester_sees_every_member(self):
+        with patch(
+            "products.access_control.backend.api.role.restricted_visible_membership_ids", return_value=None
+        ):
+            response = self.client.get(self.memberships_url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert self._emails(response) == ["hidden@posthog.com", "visible@posthog.com"]
+
+    def test_restricted_requester_sees_only_visible_members(self):
+        visible_id = str(self.visible_user.organization_memberships.get().id)
+
+        with patch(
+            "products.access_control.backend.api.role.restricted_visible_membership_ids",
+            return_value={visible_id},
+        ):
+            response = self.client.get(self.memberships_url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert self._emails(response) == ["visible@posthog.com"]
+
+    def test_restricted_requester_seeing_nobody_gets_an_empty_list(self):
+        with patch(
+            "products.access_control.backend.api.role.restricted_visible_membership_ids", return_value=set()
+        ):
+            response = self.client.get(self.memberships_url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["results"] == []
