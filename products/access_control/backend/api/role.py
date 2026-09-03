@@ -10,7 +10,7 @@ this operates on.
 from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import F, Prefetch, QuerySet
 
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -127,11 +127,16 @@ class RoleMembershipSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("User does not exist.")
 
         try:
-            return RoleMembership.objects.create(
-                role=role,
-                organization_member=organization_membership,
-                user=organization_membership.user,
-            )
+            # The insert needs its own savepoint: an IntegrityError marks the whole
+            # surrounding transaction as needing rollback, so catching it and carrying on
+            # raises TransactionManagementError on the next query whenever this runs inside
+            # an atomic block.
+            with transaction.atomic():
+                return RoleMembership.objects.create(
+                    role=role,
+                    organization_member=organization_membership,
+                    user=organization_membership.user,
+                )
         except IntegrityError:
             raise serializers.ValidationError("User is already part of the role.")
 

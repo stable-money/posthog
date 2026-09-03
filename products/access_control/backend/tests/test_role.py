@@ -206,6 +206,11 @@ class TestRoleAPI(APIBaseTest):
                 )
 
         _add_members(2, "small")
+        # Warm up first: the very first request of the test also populates process-level caches
+        # (constance settings, rate-limit config), which would otherwise show up as a difference
+        # in absolute query count that has nothing to do with member prefetching.
+        assert self.client.get(self.roles_url).status_code == status.HTTP_200_OK
+
         with CaptureQueriesContext(connection) as few_members:
             response = self.client.get(self.roles_url)
         assert response.status_code == status.HTTP_200_OK
