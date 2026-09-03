@@ -312,3 +312,72 @@ class TestRoleSerializerVisibilityRedaction(APIBaseTest):
         data = RoleSerializer(role, context={"view": self._view()}).data
 
         assert data["is_default"] is False
+
+
+class TestRoleCrossOrgAuthorization(APIBaseTest):
+    """The organization must come from the URL, never from the session's active organization.
+
+    The EE implementation this replaced carried a dedicated regression class for this, because it
+    was a real vulnerability there. Every other test in this file uses a requester who belongs to
+    exactly one organization, so none of them can tell the two sources apart: they agree. These
+    deliberately make them disagree.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.organization_membership.level = OrganizationMembership.Level.ADMIN
+        self.organization_membership.save()
+
+        self.other_organization = Organization.objects.create(name="Other Org")
+        self.other_membership = OrganizationMembership.objects.create(
+            organization=self.other_organization, user=self.user, level=OrganizationMembership.Level.ADMIN
+        )
+        # Session is pointed at the FIRST org while every request below targets the second.
+        self.user.current_organization = self.organization
+        self.user.save()
+
+    def test_role_is_created_in_the_url_organization_not_the_active_one(self):
+        response = self.client.post(
+            f"/api/organizations/{self.other_organization.id}/roles/", {"name": "cross-org"}
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        role = Role.objects.get(id=response.json()["id"])
+        assert role.organization == self.other_organization
+        assert role.organization != self.user.current_organization
+
+    def test_admin_of_active_org_but_only_member_of_url_org_is_forbidden(self):
+        # Admin here, plain member there. Authorization must follow the URL's org.
+        self.other_membership.level = OrganizationMembership.Level.MEMBER
+        self.other_membership.save()
+
+        response = self.client.post(
+            f"/api/organizations/{self.other_organization.id}/roles/", {"name": "cross-org"}
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert not Role.objects.filter(organization=self.other_organization, name="cross-org").exists()
+
+    def test_roles_listed_are_the_url_organizations(self):
+        Role.objects.create(organization=self.organization, name="here")
+        Role.objects.create(organization=self.other_organization, name="there")
+
+        response = self.client.get(f"/api/organizations/{self.other_organization.id}/roles/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert [r["name"] for r in response.json()["results"]] == ["there"]
+
+
+class TestRoleApiScope(APIBaseTest):
+    """The API scope is part of the contract for already-issued credentials.
+
+    Moving these viewsets onto a different scope_object would both lock out personal API keys
+    already scoped organization:write and grant org-wide role administration to any credential
+    holding a narrower scope. Neither is visible in a response body, so it needs its own assertion.
+    """
+
+    def test_viewsets_declare_the_organization_scope(self):
+        from products.access_control.backend.api.role import RoleMembershipViewSet, RoleViewSet
+
+        assert RoleViewSet.scope_object == "organization"
+        assert RoleMembershipViewSet.scope_object == "organization"

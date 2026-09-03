@@ -209,7 +209,11 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 class RoleViewSet(TeamAndOrgViewSetMixin, viewsets.ModelViewSet):
-    scope_object = "access_control"
+    # Must stay "organization", as the Enterprise implementation this replaced declared:
+    # APIScopePermission derives the required PAT/OAuth scope straight from this attribute,
+    # so changing it both locks out credentials already scoped organization:write and hands
+    # org-wide role administration to any credential holding the narrower access_control:write.
+    scope_object = "organization"
     serializer_class = RoleSerializer
     permission_classes = [OrganizationAdminWritePermissions, TimeSensitiveActionPermission]
     queryset = Role.objects.select_related("created_by").prefetch_related(role_memberships_prefetch())
@@ -238,7 +242,11 @@ class RoleMembershipViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    scope_object = "access_control"
+    # Must stay "organization", as the Enterprise implementation this replaced declared:
+    # APIScopePermission derives the required PAT/OAuth scope straight from this attribute,
+    # so changing it both locks out credentials already scoped organization:write and hands
+    # org-wide role administration to any credential holding the narrower access_control:write.
+    scope_object = "organization"
     serializer_class = RoleMembershipSerializer
     permission_classes = [OrganizationAdminWritePermissions, TimeSensitiveActionPermission]
     queryset = RoleMembership.objects.select_related("role", "user").prefetch_related(
