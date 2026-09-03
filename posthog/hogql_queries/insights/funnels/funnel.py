@@ -49,6 +49,22 @@ class FunnelUDFMixin:
             prop = "prop"
         else:
             prop = "prop_basic"
+        if self.context.holdConstantBreakdown:
+            # Events that don't carry the property have no value to hold, so they must not chain a
+            # funnel of their own. Upstream folds a missing property into an empty-string value,
+            # which here would read as "converted while the property stayed the same" for people
+            # who never had it at all.
+            #
+            # This is always the array shape even for one property, because FunnelQueryContext
+            # boxes a lone breakdown string into a list; the empty test therefore has to look at
+            # the elements. Upstream's notEmpty() below tests the array itself, which is never
+            # empty (it is an arrayMap over a fixed breakdown list), so it would let [''] through.
+            # get_breakdown_expr wraps every field in ifNull(..., ''), so '' is the only
+            # missing-marker available -- a genuinely empty value is dropped along with it.
+            return (
+                f"groupUniqArrayIf(arrayMap(x -> ifNull(x, ''), {prop}), "
+                f"notEmpty({prop}) and arrayAll(x -> notEmpty(ifNull(x, '')), {prop}))"
+            )
         if self._query_has_array_breakdown():
             return f"groupUniqArrayIf(arrayMap(x -> ifNull(x, ''), {prop}), notEmpty({prop}))"
         return f"groupUniqArray(ifNull({prop}, ''))"
@@ -214,7 +230,61 @@ class FunnelUDF(FunnelUDFMixin, FunnelBase):
         """,
             placeholders,
         )
+
+        if self.context.holdConstantBreakdown:
+            return self._hold_constant_collapse(inner_select)
+
         return inner_select
+
+    def _hold_constant_collapse(self, inner_select: ast.SelectQuery) -> ast.SelectQuery:
+        """Collapse the per-value funnels of a held-constant breakdown into one row per person.
+
+        Attribution is forced to all_events when the breakdown is held constant, so the UDF still
+        returns one row per value of the property, each row a funnel chained through that value
+        alone -- which is the "same value at every step" part of the semantics, and comes for free.
+        What is left is that a person who touched five products would otherwise be counted five
+        times. A person converts if *any* single value carried them the whole way, so the reached-
+        step bitfields are OR'd and everything else is taken from that person's furthest value.
+
+        Aliases are renamed in an outer select rather than assigned in place: `max(x) as x` is a
+        cyclic alias in ClickHouse.
+        """
+        inner_aggregates = [
+            "aggregation_target",
+            "groupBitOr(steps_bitfield) as hc_steps_bitfield",
+            "max(step_reached) as hc_step_reached",
+            "argMax(timings, step_reached) as hc_timings",
+            "any(prop) as hc_prop",
+        ]
+        outer_fields = [
+            "aggregation_target",
+            "hc_steps_bitfield as steps_bitfield",
+            "hc_step_reached as step_reached",
+            "hc_step_reached + 1 as steps",
+            "hc_timings as timings",
+            "hc_prop as prop",
+            f"{self._default_breakdown_selector()} as breakdown",
+        ]
+
+        if self._include_matched_events() or self.context.includePrecedingTimestamp or self.context.includeTimestamp:
+            inner_aggregates.append("argMax(matched_events_array, step_reached) as hc_matched_events_array")
+            outer_fields.append("hc_matched_events_array as matched_events_array")
+
+        if self._is_session_aggregation():
+            inner_aggregates.append("any(person_id) as hc_person_id")
+            outer_fields.append("hc_person_id as person_id")
+
+        return parse_select(
+            f"""
+            SELECT {", ".join(outer_fields)}
+            FROM (
+                SELECT {", ".join(inner_aggregates)}
+                FROM {{inner_select}}
+                GROUP BY aggregation_target
+            )
+        """,
+            {"inner_select": inner_select},
+        )
 
     def get_query(self) -> ast.SelectQuery:
         # Enforced where the bitfield SQL is emitted because not every caller goes

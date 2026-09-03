@@ -28214,6 +28214,11 @@
                 "funnelFromStep": {
                     "$ref": "#/definitions/integer"
                 },
+                "funnelHoldConstantBreakdown": {
+                    "default": false,
+                    "description": "Hold the breakdown property constant across every step, instead of splitting the funnel by it.\nA person only converts if one single value of the breakdown property carries them through the\nwhole funnel \u2014 \"viewed product X then bought product X\", never \"viewed X then bought Y\". The\nresult is one funnel, not one per value, and a person is counted once even if several values\nwould have carried them through. Mixpanel calls this \"hold property constant\".\n\nRequires a single-property event/person/session breakdown; cohort and multi-property\nbreakdowns are rejected. Forces `breakdownAttributionType` to `all_events`, and events\nmissing the property are excluded rather than grouped under an empty value.",
+                    "type": "boolean"
+                },
                 "funnelOrderType": {
                     "$ref": "#/definitions/StepOrderValue",
                     "default": "ordered"
