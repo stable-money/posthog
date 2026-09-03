@@ -305,7 +305,7 @@ class TestTaxonomyAgentToolkit(BaseTest):
         self.assertNotIn("<name>secret</name>", result.result)
 
     async def test_person_properties_surface_stored_descriptions_sanitized(self):
-        from ee.models.property_definition import EnterprisePropertyDefinition
+        from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
         # An EnterprisePropertyDefinition also creates the base PropertyDefinition row the person path
         # discovers, so its user-authored description should ride along on the surfaced property.

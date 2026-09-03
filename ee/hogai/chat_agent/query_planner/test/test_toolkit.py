@@ -526,7 +526,7 @@ class TestTaxonomyAgentToolkit(ClickhouseTestMixin, APIBaseTest):
         # property must reach the LLM. The shared helper was wired for stored descriptions in
         # #73360, but this (query_planner) toolkit — the one read_taxonomy actually constructs —
         # was left calling it without them, so descriptions never surfaced in production.
-        from ee.models.property_definition import EnterprisePropertyDefinition
+        from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
         EnterprisePropertyDefinition.objects.create(
             team=self.team,

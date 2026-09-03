@@ -13,7 +13,7 @@ from posthog.settings import EE_AVAILABLE
 from products.event_definitions.backend.models import EventDefinition
 
 if TYPE_CHECKING:
-    from ee.models.event_definition import EnterpriseEventDefinition
+    from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
 
 @dataclass(frozen=True)

@@ -679,7 +679,7 @@ class PropertyDefinitionViewSet(
 
             order_by_verified = False
             if EE_AVAILABLE:
-                from ee.models.property_definition import EnterprisePropertyDefinition
+                from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
                 # Prevent fetching deprecated `tags` field. Tags are separately fetched in TaggedItemSerializerMixin
                 property_definition_fields = ", ".join(
@@ -819,7 +819,7 @@ class PropertyDefinitionViewSet(
             effective_project_id=self.project_id,
         )
         if EE_AVAILABLE:
-            from ee.models.property_definition import EnterprisePropertyDefinition
+            from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
             enterprise_property = (
                 EnterprisePropertyDefinition.objects.alias(effective_project_id=effective_project_id_expr())

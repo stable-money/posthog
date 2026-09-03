@@ -564,16 +564,12 @@ class TestEvents(ClickhouseTestMixin, APIBaseTest):
         )
         flush_persons_and_events()
 
-        # Try to import enterprise model, skip test if not available
-        try:
-            from ee.models.property_definition import EnterprisePropertyDefinition
+        from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
-            # Create hidden property definition - this should hide all values for this property
-            EnterprisePropertyDefinition.objects.create(
-                team=self.team, name="hidden_prop", type=PropertyDefinition.Type.EVENT, hidden=True
-            )
-        except ImportError:
-            self.skipTest("Enterprise features not available")
+        # Create hidden property definition - this should hide all values for this property
+        EnterprisePropertyDefinition.objects.create(
+            team=self.team, name="hidden_prop", type=PropertyDefinition.Type.EVENT, hidden=True
+        )
 
         # Test hidden property returns no values
         hidden_response = self.client.get(f"/api/projects/{self.team.id}/events/values/?key=hidden_prop").json()

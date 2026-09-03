@@ -1,10 +1,17 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from products.event_definitions.backend.models import PropertyDefinition
+from products.event_definitions.backend.models.property_definition import PropertyDefinition
 
 
 class EnterprisePropertyDefinition(PropertyDefinition):
+    class Meta:
+        # Pinned to the "ee" app so the table stays ee_enterprisepropertydefinition, the propertydefinition_ptr
+        # parent link keeps its identity, and the existing ee migration graph keeps applying --
+        # moving the file is a licence move, not a schema change. Same pattern as
+        # products/access_control/backend/models/role.py.
+        app_label = "ee"
+
     description = models.TextField(blank=True, null=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey("posthog.User", null=True, on_delete=models.SET_NULL, blank=True)

@@ -98,7 +98,7 @@ def fetch_event_descriptions(team: Team, columns: list[str], rows: list[list[Any
     """
     if not EE_AVAILABLE:
         return {}
-    from ee.models.event_definition import EnterpriseEventDefinition  # noqa: PLC0415 — absent from OSS builds
+    from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition  # noqa: PLC0415 — absent from OSS builds
 
     custom_names = session_custom_event_names(columns, rows)
     found = dict(
