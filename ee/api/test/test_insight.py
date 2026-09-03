@@ -20,7 +20,7 @@ from products.dashboards.backend.models.dashboard_tile import DashboardTile
 from products.product_analytics.backend.facade.models import Insight
 
 from ee.api.test.base import APILicensedTest
-from ee.models import DashboardPrivilege
+from products.dashboards.backend.models.dashboard_privilege import DashboardPrivilege
 
 
 class TestInsightEnterpriseAPI(APILicensedTest):

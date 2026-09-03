@@ -7,7 +7,7 @@ from products.access_control.backend.models.access_control import AccessControl
 from products.dashboards.backend.models.dashboard import Dashboard
 
 from ee.api.test.base import APILicensedTest
-from ee.models.dashboard_privilege import DashboardPrivilege
+from products.dashboards.backend.models.dashboard_privilege import DashboardPrivilege
 
 
 class TestDashboardCollaboratorsAPI(APILicensedTest):

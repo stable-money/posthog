@@ -7,6 +7,7 @@ from posthog.models.organization import Organization, OrganizationMembership
 
 from products.access_control.backend.models.access_control import AccessControl
 from products.dashboards.backend.models.dashboard import Dashboard
+from products.dashboards.backend.models.dashboard_privilege import DashboardPrivilege
 
 logger = structlog.get_logger(__name__)
 
@@ -63,61 +64,54 @@ def rbac_dashboard_access_control_migration(organization_id: int):
                     )
 
                     # Convert dashboard privileges to access control entries
-                    try:
-                        from ee.models import DashboardPrivilege
+                    dashboard_privileges = DashboardPrivilege.objects.filter(dashboard_id=dashboard.id)
 
-                        dashboard_privileges = DashboardPrivilege.objects.filter(dashboard_id=dashboard.id)
+                    for privilege in dashboard_privileges:
+                        try:
+                            # Find the organization membership for this user
+                            org_membership = OrganizationMembership.objects.filter(
+                                user=privilege.user, organization=organization
+                            ).first()
 
-                        for privilege in dashboard_privileges:
-                            try:
-                                # Find the organization membership for this user
-                                org_membership = OrganizationMembership.objects.filter(
-                                    user=privilege.user, organization=organization
-                                ).first()
-
-                                if not org_membership:
-                                    logger.warning(
-                                        "No organization membership found for user",
-                                        user_id=privilege.user.id,
-                                        dashboard_id=dashboard.id,
-                                    )
-                                    continue
-
-                                # Create access control entry for the user with edit access
-                                AccessControl.objects.create(
-                                    team_id=dashboard.team_id,
-                                    access_level="editor",
-                                    resource="dashboard",
-                                    resource_id=str(dashboard.id),
-                                    organization_member=org_membership,
-                                )
-
-                                logger.info(
-                                    "Migrated dashboard privilege to access control",
-                                    dashboard_id=dashboard.id,
+                            if not org_membership:
+                                logger.warning(
+                                    "No organization membership found for user",
                                     user_id=privilege.user.id,
-                                    team_id=dashboard.team_id,
+                                    dashboard_id=dashboard.id,
                                 )
+                                continue
 
-                                # Remove the original privilege entry
-                                privilege.delete()
+                            # Create access control entry for the user with edit access
+                            AccessControl.objects.create(
+                                team_id=dashboard.team_id,
+                                access_level="editor",
+                                resource="dashboard",
+                                resource_id=str(dashboard.id),
+                                organization_member=org_membership,
+                            )
 
-                            except Exception as e:
-                                error_message = f"Failed to migrate dashboard privilege for user {privilege.user.id}"
-                                logger.exception(error_message, exc_info=e)
-                                capture_exception(
-                                    e,
-                                    additional_properties={
-                                        "dashboard_id": dashboard.id,
-                                        "user_id": privilege.user.id,
-                                        "organization_id": organization_id,
-                                    },
-                                )
-                                raise
+                            logger.info(
+                                "Migrated dashboard privilege to access control",
+                                dashboard_id=dashboard.id,
+                                user_id=privilege.user.id,
+                                team_id=dashboard.team_id,
+                            )
 
-                    except ImportError:
-                        # DashboardPrivilege model not available, skip privilege migration
-                        logger.info("DashboardPrivilege model not available, skipping privilege migration")
+                            # Remove the original privilege entry
+                            privilege.delete()
+
+                        except Exception as e:
+                            error_message = f"Failed to migrate dashboard privilege for user {privilege.user.id}"
+                            logger.exception(error_message, exc_info=e)
+                            capture_exception(
+                                e,
+                                additional_properties={
+                                    "dashboard_id": dashboard.id,
+                                    "user_id": privilege.user.id,
+                                    "organization_id": organization_id,
+                                },
+                            )
+                            raise
 
                     # Update restriction level to EVERYONE_IN_PROJECT_CAN_EDIT (21)
                     dashboard.restriction_level = Dashboard.RestrictionLevel.EVERYONE_IN_PROJECT_CAN_EDIT
