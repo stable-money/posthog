@@ -17,7 +17,7 @@ from ee.hogai.utils.helpers import (
     format_events_xml,
     format_events_yaml,
 )
-from ee.models.event_definition import EnterpriseEventDefinition
+from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
 # Mock CORE_FILTER_DEFINITIONS_BY_GROUP for consistent testing
 MOCK_CORE_FILTER_DEFINITIONS = {

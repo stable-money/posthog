@@ -308,7 +308,7 @@ def _get_event_definition_descriptions(
     if not EE_AVAILABLE:
         return {}
 
-    from ee.models.event_definition import (
+    from products.event_definitions.backend.models.enterprise_event_definition import (
         EnterpriseEventDefinition,  # noqa: PLC0415 — EE-only model, keep off the OSS import path
     )
 

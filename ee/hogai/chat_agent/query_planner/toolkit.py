@@ -192,7 +192,7 @@ class TaxonomyAgentToolkit:
         if not EE_AVAILABLE or not names:
             return {}
 
-        from ee.models.property_definition import (
+        from products.event_definitions.backend.models.enterprise_property_definition import (
             EnterprisePropertyDefinition,  # noqa: PLC0415 — EE-only model, keep off the OSS import path
         )
 

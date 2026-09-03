@@ -1,10 +1,17 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from products.event_definitions.backend.models import EventDefinition
+from products.event_definitions.backend.models.event_definition import EventDefinition
 
 
 class EnterpriseEventDefinition(EventDefinition):
+    class Meta:
+        # Pinned to the "ee" app so the table stays ee_enterpriseeventdefinition, the eventdefinition_ptr
+        # parent link keeps its identity, and the existing ee migration graph keeps applying --
+        # moving the file is a licence move, not a schema change. Same pattern as
+        # products/access_control/backend/models/role.py.
+        app_label = "ee"
+
     owner = models.ForeignKey(
         "posthog.User",
         null=True,

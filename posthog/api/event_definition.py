@@ -58,7 +58,7 @@ def create_event_definitions_sql(
     if order_expressions is None:
         order_expressions = []
     if is_enterprise:
-        from ee.models import EnterpriseEventDefinition
+        from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
         ee_model = EnterpriseEventDefinition
     else:
@@ -312,7 +312,7 @@ class EventDefinitionViewSet(
 
         event_definition_object_manager: Manager
         if EE_AVAILABLE:
-            from ee.models.event_definition import EnterpriseEventDefinition
+            from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
             event_definition_object_manager = EnterpriseEventDefinition.objects
         else:
@@ -486,7 +486,7 @@ class EventDefinitionViewSet(
 
     def _get_event_definition(self, **filters) -> EventDefinition:
         if EE_AVAILABLE:
-            from ee.models.event_definition import EnterpriseEventDefinition
+            from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
             enterprise_event = EnterpriseEventDefinition.objects.filter(**filters).first()
             if enterprise_event:
@@ -587,7 +587,7 @@ class EventDefinitionViewSet(
         if not EE_AVAILABLE:
             raise serializers.ValidationError("Verifying event definitions requires an enterprise license.")
 
-        from ee.models.event_definition import EnterpriseEventDefinition
+        from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
         serializer = EventDefinitionBulkUpdateVerifiedRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

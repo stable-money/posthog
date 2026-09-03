@@ -21,7 +21,7 @@ from ee.hogai.tools.read_taxonomy.core import (
 from ee.hogai.tools.read_taxonomy.tool import ReadTaxonomyTool
 from ee.hogai.utils.types import AssistantState
 from ee.hogai.utils.types.base import NodePath
-from ee.models.event_definition import EnterpriseEventDefinition
+from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
 
 class TestReadTaxonomyTool(NonAtomicBaseTest):

@@ -9,7 +9,7 @@ from posthog.event_usage import groups
 from posthog.models import EventDefinition, ObjectMediaPreview
 from posthog.models.organization import OrganizationMembership
 
-from ee.models.event_definition import EnterpriseEventDefinition
+from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
 
 class EnterpriseEventDefinitionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):

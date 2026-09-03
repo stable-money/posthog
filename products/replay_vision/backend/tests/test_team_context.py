@@ -14,7 +14,7 @@ from products.replay_vision.backend.temporal.team_context import (
 )
 from products.replay_vision.backend.temporal.types import ScannerLlmInputs
 
-from ee.models.event_definition import EnterpriseEventDefinition
+from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
 
 def _rows(*event_names: str) -> tuple[list[str], list[list[str]]]:

@@ -19,7 +19,7 @@ from posthog.models import ActivityLog, ObjectMediaPreview, Tag, Team, UploadedM
 
 from products.event_definitions.backend.models.event_definition import EventDefinition
 
-from ee.models.event_definition import EnterpriseEventDefinition
+from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 from ee.models.license import License, LicenseManager
 
 

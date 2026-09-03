@@ -18,7 +18,7 @@ from products.wizard.backend.facade.enums import RunPhase, TaskStatus
 from products.wizard.backend.metrics import WIZARD_SESSIONS_FINISHED_TOTAL
 from products.wizard.backend.tasks.tasks import sync_wizard_event_definitions
 
-from ee.models.event_definition import EnterpriseEventDefinition
+from products.event_definitions.backend.models.enterprise_event_definition import EnterpriseEventDefinition
 
 
 def _input(team_id: int, **overrides) -> UpsertWizardSessionInput:

@@ -17,7 +17,7 @@ from posthog.models import ActivityLog, EventProperty, Tag
 from products.event_definitions.backend.models.property_definition import PropertyDefinition
 
 from ee.models.license import License, LicenseManager
-from ee.models.property_definition import EnterprisePropertyDefinition
+from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
 
 class TestPropertyDefinitionEnterpriseAPI(APIBaseTest):

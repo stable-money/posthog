@@ -8,7 +8,7 @@ from posthog.helpers.impersonation import is_impersonated
 from posthog.models import PropertyDefinition
 from posthog.models.activity_logging.activity_log import Detail, dict_changes_between, log_activity
 
-from ee.models.property_definition import EnterprisePropertyDefinition
+from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
 
 class EnterprisePropertyDefinitionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):

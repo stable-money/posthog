@@ -664,21 +664,14 @@ class EventViewSet(
 
     @tracer.start_as_current_span("events_api_is_property_hidden")
     def _is_property_hidden(self, key: str, team: Team) -> bool:
-        property_is_hidden = False
-        try:
-            from ee.models.property_definition import EnterprisePropertyDefinition
+        from products.event_definitions.backend.models.enterprise_property_definition import EnterprisePropertyDefinition
 
-            property_is_hidden = EnterprisePropertyDefinition.objects.filter(
-                team=team,
-                name=key,
-                type=PropertyDefinition.Type.EVENT.value,
-                hidden=True,
-            ).exists()
-        except ImportError:
-            # Enterprise features not available, continue normally
-            pass
-
-        return property_is_hidden
+        return EnterprisePropertyDefinition.objects.filter(
+            team=team,
+            name=key,
+            type=PropertyDefinition.Type.EVENT.value,
+            hidden=True,
+        ).exists()
 
     def _is_property_restricted(self, key: str, team: Team) -> bool:
         """Checks if a property key is restricted for the current user."""
