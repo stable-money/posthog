@@ -113,7 +113,7 @@ from products.notifications.backend.facade.api import (
 )
 from products.tasks.backend.facade import api as tasks_facade
 
-from ee.clickhouse.views.experiment_saved_metrics import ExperimentToSavedMetricSerializer
+from products.experiments.backend.presentation.saved_metrics import ExperimentToSavedMetricSerializer
 
 logger = structlog.get_logger(__name__)
 

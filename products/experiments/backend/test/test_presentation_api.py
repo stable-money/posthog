@@ -51,7 +51,7 @@ from products.feature_flags.backend.models.evaluation_context import EvaluationC
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 
 from ee.api.test.base import APILicensedTest
-from ee.clickhouse.views.experiment_saved_metrics import ExperimentToSavedMetricSerializer
+from products.experiments.backend.presentation.saved_metrics import ExperimentToSavedMetricSerializer
 
 
 def _make(cls, **attrs):
