@@ -4823,15 +4823,6 @@ export namespace Schemas {
     last_refresh: string | null;
     team_id: number;
   };
-  export type DashboardCollaborator = {
-    id: string;
-    dashboard_id: number;
-    user: UserBasic & unknown;
-    level: RestrictionLevelEnum & unknown;
-    added_at: string;
-    updated_at: string;
-    user_uuid: string;
-  };
   export type DashboardFilter = Partial<{
     breakdown_filter: BreakdownFilter;
     date_from: string | null;
@@ -18720,35 +18711,6 @@ export namespace Endpoints {
     };
     responses: { 201: Schemas.Dashboard };
   };
-  export type get_Dashboards_collaborators_list = {
-    method: "GET";
-    path: "/api/projects/{project_id}/dashboards/{dashboard_id}/collaborators/";
-    requestFormat: "json";
-    parameters: {
-      path: { dashboard_id: number; project_id: string };
-    };
-    responses: { 200: Array<Schemas.DashboardCollaborator> };
-  };
-  export type post_Dashboards_collaborators_create = {
-    method: "POST";
-    path: "/api/projects/{project_id}/dashboards/{dashboard_id}/collaborators/";
-    requestFormat: "json";
-    parameters: {
-      path: { dashboard_id: number; project_id: string };
-
-      body: Schemas.DashboardCollaborator;
-    };
-    responses: { 201: Schemas.DashboardCollaborator };
-  };
-  export type delete_Dashboards_collaborators_destroy = {
-    method: "DELETE";
-    path: "/api/projects/{project_id}/dashboards/{dashboard_id}/collaborators/{user__uuid}/";
-    requestFormat: "json";
-    parameters: {
-      path: { dashboard_id: number; project_id: string; user__uuid: string };
-    };
-    responses: { 204: unknown };
-  };
   export type get_Dashboards_sharing_list = {
     method: "GET";
     path: "/api/projects/{project_id}/dashboards/{dashboard_id}/sharing/";
@@ -25789,7 +25751,6 @@ export type EndpointByMethod = {
     "/api/projects/{project_id}/dashboard_templates/{id}/": Endpoints.get_Dashboard_templates_retrieve;
     "/api/projects/{project_id}/dashboard_templates/json_schema/": Endpoints.get_Dashboard_templates_json_schema_retrieve;
     "/api/projects/{project_id}/dashboards/": Endpoints.get_Dashboards_list;
-    "/api/projects/{project_id}/dashboards/{dashboard_id}/collaborators/": Endpoints.get_Dashboards_collaborators_list;
     "/api/projects/{project_id}/dashboards/{dashboard_id}/sharing/": Endpoints.get_Dashboards_sharing_list;
     "/api/projects/{project_id}/dashboards/{id}/": Endpoints.get_Dashboards_retrieve;
     "/api/projects/{project_id}/dashboards/{id}/run_insights/": Endpoints.get_Dashboards_run_insights_retrieve;
@@ -26150,7 +26111,6 @@ export type EndpointByMethod = {
     "/api/projects/{project_id}/dashboard_templates/": Endpoints.post_Dashboard_templates_create;
     "/api/projects/{project_id}/dashboard_templates/copy_between_projects/": Endpoints.post_Dashboard_templates_copy_between_projects_create;
     "/api/projects/{project_id}/dashboards/": Endpoints.post_Dashboards_create;
-    "/api/projects/{project_id}/dashboards/{dashboard_id}/collaborators/": Endpoints.post_Dashboards_collaborators_create;
     "/api/projects/{project_id}/dashboards/{dashboard_id}/sharing/passwords/": Endpoints.post_Dashboards_sharing_passwords_create;
     "/api/projects/{project_id}/dashboards/{dashboard_id}/sharing/refresh/": Endpoints.post_Dashboards_sharing_refresh_create;
     "/api/projects/{project_id}/dashboards/{id}/analyze_refresh_result/": Endpoints.post_Dashboards_analyze_refresh_result_create;
@@ -26582,7 +26542,6 @@ export type EndpointByMethod = {
     "/api/projects/{project_id}/comments/{id}/": Endpoints.delete_Comments_destroy;
     "/api/projects/{project_id}/conversations/tickets/{id}/": Endpoints.delete_Conversations_tickets_destroy;
     "/api/projects/{project_id}/dashboard_templates/{id}/": Endpoints.delete_Dashboard_templates_destroy;
-    "/api/projects/{project_id}/dashboards/{dashboard_id}/collaborators/{user__uuid}/": Endpoints.delete_Dashboards_collaborators_destroy;
     "/api/projects/{project_id}/dashboards/{dashboard_id}/sharing/passwords/{password_id}/": Endpoints.delete_Dashboards_sharing_passwords_destroy;
     "/api/projects/{project_id}/dashboards/{id}/": Endpoints.delete_Dashboards_destroy;
     "/api/projects/{project_id}/data_color_themes/{id}/": Endpoints.delete_Data_color_themes_destroy;
