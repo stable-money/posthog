@@ -24,6 +24,10 @@ class DashboardPrivilege(UUIDTModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # Pinned to the "ee" app so the table stays ee_dashboardprivilege and the existing
+        # ee migration graph keeps applying -- moving the file is a licence move, not a schema
+        # change. Same pattern as products/access_control/backend/models/role.py.
+        app_label = "ee"
         constraints = [
             models.UniqueConstraint(fields=["dashboard", "user"], name="unique_explicit_dashboard_privilege")
         ]

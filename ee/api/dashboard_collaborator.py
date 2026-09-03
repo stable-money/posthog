@@ -14,7 +14,7 @@ from posthog.user_permissions import UserPermissions, UserPermissionsSerializerM
 
 from products.dashboards.backend.models.dashboard import Dashboard
 
-from ee.models.dashboard_privilege import DashboardPrivilege
+from products.dashboards.backend.models.dashboard_privilege import DashboardPrivilege
 
 
 class CanEditDashboardCollaborator(BasePermission):

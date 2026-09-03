@@ -12,7 +12,7 @@ from products.dashboards.backend.models.dashboard import Dashboard
 from products.dashboards.backend.models.dashboard_tile import DashboardTile
 from products.product_analytics.backend.facade.models import Insight
 
-from ee.models.dashboard_privilege import DashboardPrivilege
+from products.dashboards.backend.models.dashboard_privilege import DashboardPrivilege
 
 
 class WithPermissionsBase:

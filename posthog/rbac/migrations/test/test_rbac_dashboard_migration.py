@@ -10,7 +10,7 @@ from posthog.rbac.migrations.rbac_dashboard_migration import rbac_dashboard_acce
 from products.access_control.backend.models.access_control import AccessControl
 from products.dashboards.backend.models.dashboard import Dashboard
 
-from ee.models.dashboard_privilege import DashboardPrivilege
+from products.dashboards.backend.models.dashboard_privilege import DashboardPrivilege
 
 
 @pytest.mark.ee
