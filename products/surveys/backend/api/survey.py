@@ -77,6 +77,7 @@ from products.feature_flags.backend.api.feature_flag import (
 )
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 from products.product_analytics.backend.facade.models import Insight
+from products.surveys.backend.headline_summary import generate_survey_headline
 from products.surveys.backend.models import MAX_ITERATION_COUNT, Survey, SurveyResponseArchive, ensure_question_ids
 from products.surveys.backend.responses import (
     SurveyRates,
@@ -99,8 +100,6 @@ from products.surveys.backend.util import (
     get_archived_response_uuids,
     get_survey_property_string_expr,
 )
-
-from ee.surveys.summaries.headline_summary import generate_survey_headline
 
 # Constants for better maintainability
 logger = structlog.get_logger(__name__)

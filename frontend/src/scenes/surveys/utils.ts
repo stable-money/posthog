@@ -1258,7 +1258,7 @@ export function surveyEmitsPartialSentEvents(survey: Pick<Survey, 'type' | 'enab
  * Without intermediate partial events, posthog-js has no partial submission to distinguish a
  * complete one from, so it never sets `$survey_completed` and requiring `= true` matches nothing.
  * Accept the property being absent as completed too, the same way the response summary counts them
- * (`enable_partial_responses` branch in `ee/surveys/summaries/headline_summary.py`). An explicit
+ * (`enable_partial_responses` branch in `products/surveys/backend/headline_summary.py`). An explicit
  * `false` stays excluded: a survey switched from partial to non-partial keeps its old partials.
  */
 export function getSurveyNotificationFilters(
