@@ -23,7 +23,6 @@ from ee.middleware import admin_oauth2_callback
 from ee.support_sidebar_max.views import MaxChatViewSet
 
 from .api import authentication, billing, conversation, core_memory, license, subscription
-from .api.rbac import role
 from .api.scim import views as scim_views
 
 
@@ -39,18 +38,6 @@ def extend_api_router() -> None:
     root_router.register(r"billing", billing.BillingViewset, "billing")
     root_router.register(r"license", license.LicenseViewSet)
     root_router.register(r"integrations", integration.PublicIntegrationViewSet)
-    organization_roles_router = organizations_router.register(
-        r"roles",
-        role.RoleViewSet,
-        "organization_roles",
-        ["organization_id"],
-    )
-    organization_roles_router.register(
-        r"role_memberships",
-        role.RoleMembershipViewSet,
-        "organization_role_memberships",
-        ["organization_id", "role_id"],
-    )
     projects_router.register(r"hooks", hooks.HookViewSet, "project_hooks", ["team_id"])
 
     project_subscriptions_router = projects_router.register(
