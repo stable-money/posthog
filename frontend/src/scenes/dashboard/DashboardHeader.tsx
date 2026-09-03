@@ -19,7 +19,7 @@ import { DashboardSceneMenuBar } from './DashboardSceneMenuBar'
 import { DashboardScenePanel } from './DashboardScenePanel'
 
 export const DASHBOARD_CANNOT_EDIT_MESSAGE =
-    "You don't have edit permissions for this dashboard. Ask a dashboard collaborator with edit access to add you."
+    "You don't have edit permissions for this dashboard. Ask its owner or a project admin for access."
 
 export function insightIsAddedToDashboard(input: Record<string, unknown> | null, dashboardId: number): boolean {
     return Array.isArray(input?.dashboards) && input.dashboards.some((id) => Number(id) === dashboardId)

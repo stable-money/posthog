@@ -8,7 +8,7 @@ export const WIDGET_LIST_ORDER_DIRECTION_OPTIONS = [
 
 /** Shown on widget tile filter controls when the viewer cannot edit the dashboard. */
 export const DASHBOARD_WIDGET_TILE_FILTERS_READONLY_REASON =
-    "You don't have edit permissions for this dashboard. Ask a dashboard collaborator with edit access to add you."
+    "You don't have edit permissions for this dashboard. Ask its owner or a project admin for access."
 
 /** Debounce before PATCHing tile config after on-tile filter edits (run_widgets refresh). */
 export const WIDGET_TILE_REFRESH_DEBOUNCE_MS = 300
