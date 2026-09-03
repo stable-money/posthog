@@ -3,16 +3,16 @@ from posthog.settings import EE_AVAILABLE
 
 
 def register_routes(routers: RouterRegistry) -> None:
-    # All experiments viewsets currently live in `ee/clickhouse/views/` and
-    # `products/experiments/backend/presentation/views.py` — both unavailable
-    # without EE installed, so the entire surface is EE-gated.
+    # All three viewsets now live under products/, so nothing here imports ee/ any more.
+    # The gate is kept deliberately: dropping it would newly expose /experiments/,
+    # /experiment_holdouts/ and /experiment_saved_metrics/ on a build without EE, which is a
+    # product decision rather than a consequence of relocating the source.
     if not EE_AVAILABLE:
         return
 
+    from products.experiments.backend.presentation.holdouts import ExperimentHoldoutViewSet
+    from products.experiments.backend.presentation.saved_metrics import ExperimentSavedMetricViewSet
     from products.experiments.backend.presentation.views import EnterpriseExperimentsViewSet
-
-    from ee.clickhouse.views.experiment_holdouts import ExperimentHoldoutViewSet
-    from ee.clickhouse.views.experiment_saved_metrics import ExperimentSavedMetricViewSet
 
     routers.projects.register(r"experiments", EnterpriseExperimentsViewSet, "project_experiments", ["project_id"])
     routers.projects.register(
