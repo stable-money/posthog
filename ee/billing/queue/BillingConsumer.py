@@ -10,12 +10,12 @@ from posthog.exceptions_capture import capture_exception
 from posthog.models.activity_logging.activity_log import Change, Detail, log_activity
 from posthog.models.organization import Organization
 from posthog.models.user import User
+from posthog.sqs.SQSConsumer import SQSConsumer
 from posthog.utils import sanitize_ip_address
 
 from products.customer_analytics.backend.facade.api import notify_managers_of_usage_spike
 
 from ee.billing.billing_manager import BillingManager
-from ee.sqs.SQSConsumer import SQSConsumer
 
 logger = logging.getLogger(__name__)
 

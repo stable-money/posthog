@@ -110,7 +110,7 @@ def _install_in_memory_object_storage(monkeypatch: pytest.MonkeyPatch) -> dict[s
 
 
 def _install_fake_sqs_producer(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    """Patch `ee.sqs.SQSProducer.get_sqs_producer` to return a fake producer.
+    """Patch `posthog.sqs.SQSProducer.get_sqs_producer` to return a fake producer.
 
     Returns the list each `send_message` call appends to, so the test can
     decode the captured per-org payloads after the Celery task runs.
@@ -122,7 +122,7 @@ def _install_fake_sqs_producer(monkeypatch: pytest.MonkeyPatch) -> list[dict[str
             captured.append({"body": message_body, "attributes": message_attributes})
             return {"MessageId": "fake"}
 
-    monkeypatch.setattr("ee.sqs.SQSProducer.get_sqs_producer", lambda _name: _FakeProducer())
+    monkeypatch.setattr("posthog.sqs.SQSProducer.get_sqs_producer", lambda _name: _FakeProducer())
     return captured
 
 

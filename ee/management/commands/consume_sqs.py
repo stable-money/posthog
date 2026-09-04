@@ -4,8 +4,9 @@ from typing import Optional
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from posthog.sqs.SQSConsumer import SQSConsumer
+
 from ee.billing.queue.BillingConsumer import BillingConsumer
-from ee.sqs.SQSConsumer import SQSConsumer
 
 logger = logging.getLogger(__name__)
 

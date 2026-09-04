@@ -3492,7 +3492,7 @@ def send_all_org_usage_reports(
     producer = None
     try:
         if settings.EE_AVAILABLE:
-            from ee.sqs.SQSProducer import get_sqs_producer
+            from posthog.sqs.SQSProducer import get_sqs_producer
 
             producer = get_sqs_producer("usage_reports")
     except Exception:

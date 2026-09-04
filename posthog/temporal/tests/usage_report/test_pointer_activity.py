@@ -58,7 +58,7 @@ async def test_pointer_uses_v2_queue_and_correct_payload(activity_environment) -
     with (
         patch("posthog.temporal.usage_report.activities.settings") as mock_settings,
         patch("posthog.temporal.usage_report.activities.bucket", return_value="posthog-billing-usage-reports"),
-        patch("ee.sqs.SQSProducer.get_sqs_producer", side_effect=fake_get_producer),
+        patch("posthog.sqs.SQSProducer.get_sqs_producer", side_effect=fake_get_producer),
         patch("posthog.temporal.usage_report.activities.get_instance_region", return_value="US"),
     ):
         mock_settings.EE_AVAILABLE = True
@@ -123,7 +123,7 @@ async def test_pointer_omits_workflow_started_at_for_legacy_ctx(activity_environ
     with (
         patch("posthog.temporal.usage_report.activities.settings") as mock_settings,
         patch("posthog.temporal.usage_report.activities.bucket", return_value="posthog"),
-        patch("ee.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer),
+        patch("posthog.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer),
         patch("posthog.temporal.usage_report.activities.get_instance_region", return_value="US"),
     ):
         mock_settings.EE_AVAILABLE = True
@@ -146,7 +146,7 @@ async def test_pointer_skipped_when_ee_unavailable(activity_environment) -> None
 
     with (
         patch("posthog.temporal.usage_report.activities.settings") as mock_settings,
-        patch("ee.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer) as get_producer,
+        patch("posthog.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer) as get_producer,
     ):
         mock_settings.EE_AVAILABLE = False
 
@@ -167,7 +167,7 @@ async def test_pointer_raises_when_producer_misconfigured(activity_environment) 
     with (
         patch("posthog.temporal.usage_report.activities.settings") as mock_settings,
         patch("posthog.temporal.usage_report.activities.bucket", return_value="posthog"),
-        patch("ee.sqs.SQSProducer.get_sqs_producer", return_value=None),
+        patch("posthog.sqs.SQSProducer.get_sqs_producer", return_value=None),
     ):
         mock_settings.EE_AVAILABLE = True
         mock_settings.SITE_URL = "https://us.posthog.com"
@@ -190,7 +190,7 @@ async def test_pointer_raises_when_send_returns_none(activity_environment) -> No
     with (
         patch("posthog.temporal.usage_report.activities.settings") as mock_settings,
         patch("posthog.temporal.usage_report.activities.bucket", return_value="posthog"),
-        patch("ee.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer),
+        patch("posthog.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer),
         patch("posthog.temporal.usage_report.activities.get_instance_region", return_value="US"),
     ):
         mock_settings.EE_AVAILABLE = True
@@ -216,7 +216,7 @@ async def test_pointer_send_survives_post_send_metric_failure(activity_environme
     with (
         patch("posthog.temporal.usage_report.activities.settings") as mock_settings,
         patch("posthog.temporal.usage_report.activities.bucket", return_value="posthog"),
-        patch("ee.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer),
+        patch("posthog.sqs.SQSProducer.get_sqs_producer", return_value=fake_producer),
         patch("posthog.temporal.usage_report.activities.get_instance_region", return_value="US"),
         patch(
             "posthog.temporal.usage_report.activities.record_aggregate_output",
