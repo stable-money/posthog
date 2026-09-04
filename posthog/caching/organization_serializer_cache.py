@@ -22,9 +22,8 @@ from posthog.models.team import Team
 from posthog.utils import get_safe_cache
 
 from products.access_control.backend.models.access_control import AccessControl
+from products.access_control.backend.models.explicit_team_membership import ExplicitTeamMembership
 from products.access_control.backend.models.role import RoleMembership
-
-from ee.models.explicit_team_membership import ExplicitTeamMembership
 
 ORG_SERIALIZER_CACHE_TTL_SECONDS = 60 * 60
 ORG_SERIALIZER_VERSION_TTL_SECONDS = 7 * 24 * 60 * 60

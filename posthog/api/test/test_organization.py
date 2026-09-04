@@ -23,11 +23,10 @@ from posthog.models.utils import generate_random_token_personal, hash_key_value
 from posthog.user_permissions import UserPermissions
 
 from products.access_control.backend.models.access_control import AccessControl
+from products.access_control.backend.models.explicit_team_membership import ExplicitTeamMembership
 from products.access_control.backend.models.feature_flag_role_access import FeatureFlagRoleAccess
 from products.access_control.backend.models.role import Role, RoleMembership
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
-
-from ee.models.explicit_team_membership import ExplicitTeamMembership
 
 
 class TestOrganizationAPI(APIBaseTest):
