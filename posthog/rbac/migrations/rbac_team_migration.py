@@ -6,8 +6,7 @@ from posthog.exceptions_capture import capture_exception
 from posthog.models.organization import Organization, OrganizationMembership
 
 from products.access_control.backend.models.access_control import AccessControl
-
-from ee.models.explicit_team_membership import ExplicitTeamMembership
+from products.access_control.backend.models.explicit_team_membership import ExplicitTeamMembership
 
 logger = structlog.get_logger(__name__)
 

@@ -29,6 +29,10 @@ class ExplicitTeamMembership(UUIDTModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # Pinned to the "ee" app so the table stays ee_explicitteammembership and the existing
+        # ee migration graph keeps applying -- moving the file is a licence move, not a schema
+        # change. Same pattern as products/access_control/backend/models/role.py.
+        app_label = "ee"
         constraints = [
             models.UniqueConstraint(
                 fields=["team", "parent_membership"],
@@ -36,7 +40,7 @@ class ExplicitTeamMembership(UUIDTModel):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.Level(self.level))
 
     @property

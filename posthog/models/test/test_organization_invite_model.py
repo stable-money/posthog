@@ -11,8 +11,7 @@ from posthog.models.team.team import Team
 from posthog.models.user import User
 
 from products.access_control.backend.models.access_control import AccessControl
-
-from ee.models.explicit_team_membership import ExplicitTeamMembership
+from products.access_control.backend.models.explicit_team_membership import ExplicitTeamMembership
 
 
 class TestOrganizationInvite(BaseTest):
