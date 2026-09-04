@@ -13,7 +13,7 @@ CONSUMER = "ee.billing.queue.BillingConsumer"
 
 class TestBillingConsumerUsageSpike(BaseTest):
     def _build_consumer(self) -> BillingConsumer:
-        with patch("ee.sqs.SQSConsumer.boto3"):
+        with patch("posthog.sqs.SQSConsumer.boto3"):
             return BillingConsumer(queue_url="http://example/queue", region_name="us-east-1")
 
     @patch(f"{CONSUMER}.notify_managers_of_usage_spike")
@@ -49,7 +49,7 @@ class TestBillingConsumerUsageSpike(BaseTest):
 
 class TestBillingConsumerBillingActivity(BaseTest):
     def _build_consumer(self) -> BillingConsumer:
-        with patch("ee.sqs.SQSConsumer.boto3"):
+        with patch("posthog.sqs.SQSConsumer.boto3"):
             return BillingConsumer(queue_url="http://example/queue", region_name="us-east-1")
 
     def _message(self, **overrides):

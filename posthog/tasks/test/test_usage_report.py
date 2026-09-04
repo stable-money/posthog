@@ -1132,7 +1132,7 @@ class TestUsageReport(APIBaseTest, ClickhouseTestMixin, ClickhouseDestroyTablesM
     @freeze_time("2022-01-10T00:01:00Z")
     @patch("os.environ", {"DEPLOYMENT": "tests"})
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_unlicensed_usage_report(self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock) -> None:
         self.expected_properties = {}
         mockresponse = Mock()
@@ -5153,7 +5153,7 @@ class TestSendUsage(LicensedTestMixin, ClickhouseDestroyTablesMixin, APIBaseTest
 
     @freeze_time("2021-10-10T23:01:00Z")
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_send_usage(self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock) -> None:
         mockresponse = Mock()
         mockresponse.status_code = 200
@@ -5187,7 +5187,7 @@ class TestSendUsage(LicensedTestMixin, ClickhouseDestroyTablesMixin, APIBaseTest
 
     @freeze_time("2021-10-10T23:01:00Z")
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_send_usage_cloud(self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock) -> None:
         with self.is_cloud(True):
             mockresponse = Mock()
@@ -5228,7 +5228,7 @@ class TestSendUsage(LicensedTestMixin, ClickhouseDestroyTablesMixin, APIBaseTest
     # @freeze_time("2021-10-10T23:01:00Z")
     # @patch("posthog.tasks.usage_report.sync_execute", side_effect=Exception())
     # @patch("posthog.tasks.usage_report.get_ph_client")
-    # @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    # @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     # def test_send_usage_cloud_exception(
     #     self,
     #     mock_get_sqs_producer: MagicMock,
@@ -5395,7 +5395,7 @@ class TestOrganizationFiltering(LicensedTestMixin, ClickhouseDestroyTablesMixin,
         materialize("events", "$exception_values")
 
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_filter_to_single_organization(self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock) -> None:
         mock_posthog = MagicMock()
         mock_client.return_value = mock_posthog
@@ -5427,7 +5427,7 @@ class TestOrganizationFiltering(LicensedTestMixin, ClickhouseDestroyTablesMixin,
         assert properties.get("requested_missing_org_count") is None
 
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_filter_to_multiple_organizations(self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock) -> None:
         mock_posthog = MagicMock()
         mock_client.return_value = mock_posthog
@@ -5460,7 +5460,7 @@ class TestOrganizationFiltering(LicensedTestMixin, ClickhouseDestroyTablesMixin,
         assert properties.get("requested_missing_org_count") is None
 
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_filter_with_missing_organization(self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock) -> None:
         mock_posthog = MagicMock()
         mock_client.return_value = mock_posthog
@@ -5485,7 +5485,7 @@ class TestOrganizationFiltering(LicensedTestMixin, ClickhouseDestroyTablesMixin,
         assert properties["total_orgs"] == 0
 
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_filter_with_mix_of_found_and_missing(
         self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock
     ) -> None:
@@ -5528,7 +5528,7 @@ class TestOrganizationFiltering(LicensedTestMixin, ClickhouseDestroyTablesMixin,
         assert properties["total_orgs"] == 2
 
     @patch("posthog.tasks.usage_report.get_ph_client")
-    @patch("ee.sqs.SQSProducer.get_sqs_producer")
+    @patch("posthog.sqs.SQSProducer.get_sqs_producer")
     def test_no_filter_processes_all_organizations(
         self, mock_get_sqs_producer: MagicMock, mock_client: MagicMock
     ) -> None:

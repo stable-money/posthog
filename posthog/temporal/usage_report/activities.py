@@ -242,7 +242,7 @@ async def enqueue_pointer_message(inputs: EnqueuePointerInputs) -> None:
 
         @sync_to_async
         def send() -> None:
-            from ee.sqs.SQSProducer import get_sqs_producer
+            from posthog.sqs.SQSProducer import get_sqs_producer
 
             producer = get_sqs_producer(SQS_QUEUE_NAME)
             if producer is None:
